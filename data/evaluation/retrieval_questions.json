@@ -1,0 +1,122 @@
+[
+  {
+    "id": "redstone-repeater-delay",
+    "question": "怎样让红石信号延迟一段时间，并且防止信号反向传递？",
+    "category": "semantic_paraphrase",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E7%BA%A2%E7%9F%B3%E4%B8%AD%E7%BB%A7%E5%99%A8"
+    ]
+  },
+  {
+    "id": "creeper-behavior",
+    "question": "苦力怕在什么情况下会爆炸，它可能掉落哪些物品？",
+    "category": "entity",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E8%8B%A6%E5%8A%9B%E6%80%95"
+    ]
+  },
+  {
+    "id": "enchanting-table-bookshelves",
+    "question": "附魔台周围的书架应该怎样摆放才能获得较高等级的附魔？",
+    "category": "gameplay",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E9%99%84%E9%AD%94%E5%8F%B0"
+    ]
+  },
+  {
+    "id": "nether-portal-frame",
+    "question": "下界传送门的框架怎样搭建，最小需要多大的空间？",
+    "category": "structure",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E4%B8%8B%E7%95%8C%E4%BC%A0%E9%80%81%E9%97%A8"
+    ]
+  },
+  {
+    "id": "ender-dragon-defeat",
+    "question": "第一次击败末影龙后会出现什么奖励和新的传送结构？",
+    "category": "boss",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E6%9C%AB%E5%BD%B1%E9%BE%99"
+    ]
+  },
+  {
+    "id": "brewing-stand-fuel",
+    "question": "酿造台使用什么作为燃料，一份燃料能支持多少次酿造？",
+    "category": "crafting",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E9%85%BF%E9%80%A0%E5%8F%B0"
+    ]
+  },
+  {
+    "id": "iron-golem-spawning",
+    "question": "铁傀儡可以通过哪些方式生成，它通常会保护谁？",
+    "category": "entity",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E9%93%81%E5%82%80%E5%84%A1"
+    ]
+  },
+  {
+    "id": "command-block-obtain",
+    "question": "命令方块能否在生存模式中合成，玩家应该怎样获得它？",
+    "category": "command",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E5%91%BD%E4%BB%A4%E6%96%B9%E5%9D%97"
+    ]
+  },
+  {
+    "id": "java-1-21-content",
+    "question": "Minecraft Java版1.21主要加入了哪些内容？",
+    "category": "version",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/1.21"
+    ]
+  },
+  {
+    "id": "diamond-ore-generation",
+    "question": "钻石矿石通常在什么高度生成，怎样挖掘才能获得钻石？",
+    "category": "resource",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E9%92%BB%E7%9F%B3%E7%9F%BF%E7%9F%B3"
+    ]
+  },
+  {
+    "id": "spawner-activation",
+    "question": "刷怪笼在玩家距离多近时会开始生成生物？",
+    "category": "mechanic",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E5%88%B7%E6%80%AA%E7%AC%BC"
+    ]
+  },
+  {
+    "id": "ender-pearl-use",
+    "question": "投掷末影珍珠会怎样移动玩家，又可能造成什么副作用？",
+    "category": "item",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E6%9C%AB%E5%BD%B1%E7%8F%8D%E7%8F%A0"
+    ]
+  },
+  {
+    "id": "shulker-box-storage",
+    "question": "潜影盒被破坏以后，里面保存的物品会不会掉出来？",
+    "category": "item",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E6%BD%9C%E5%BD%B1%E7%9B%92"
+    ]
+  },
+  {
+    "id": "ocean-monument-mobs",
+    "question": "海底神殿中会出现哪些具有代表性的敌对生物？",
+    "category": "structure",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E6%B5%B7%E5%BA%95%E7%A5%9E%E6%AE%BF"
+    ]
+  },
+  {
+    "id": "illager-patrol",
+    "question": "灾厄巡逻队由哪些生物组成，通常会在什么地方生成？",
+    "category": "entity",
+    "expected_sources": [
+      "https://zh.minecraft.wiki/w/%E7%81%BE%E5%8E%84%E5%B7%A1%E9%80%BB%E9%98%9F"
+    ]
+  }
+]

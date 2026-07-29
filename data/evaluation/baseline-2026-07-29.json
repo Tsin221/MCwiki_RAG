@@ -1,0 +1,86 @@
+{
+  "date": "2026-07-29",
+  "retrieval": {
+    "bm25Limit": 20,
+    "semanticLimit": 20,
+    "finalLimit": 10,
+    "rrfK": 60,
+    "embeddingModel": "qwen3-embedding:0.6b",
+    "collection": "mcwiki_chunks"
+  },
+  "metrics": {
+    "questionCount": 15,
+    "hitAt10": 0.9333,
+    "hitsAt10": 14,
+    "mrrAt10": 0.7911
+  },
+  "results": [
+    {
+      "id": "redstone-repeater-delay",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "creeper-behavior",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "enchanting-table-bookshelves",
+      "expectedSourceRank": 3
+    },
+    {
+      "id": "nether-portal-frame",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "ender-dragon-defeat",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "brewing-stand-fuel",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "iron-golem-spawning",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "command-block-obtain",
+      "expectedSourceRank": 5
+    },
+    {
+      "id": "java-1-21-content",
+      "expectedSourceRank": null
+    },
+    {
+      "id": "diamond-ore-generation",
+      "expectedSourceRank": 3
+    },
+    {
+      "id": "spawner-activation",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "ender-pearl-use",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "shulker-box-storage",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "ocean-monument-mobs",
+      "expectedSourceRank": 1
+    },
+    {
+      "id": "illager-patrol",
+      "expectedSourceRank": 1
+    }
+  ],
+  "knownMisses": [
+    {
+      "id": "java-1-21-content",
+      "expectedSource": "https://zh.minecraft.wiki/w/1.21",
+      "note": "The expected source did not appear in the fused top 10; retain this case as a regression target."
+    }
+  ]
+}
