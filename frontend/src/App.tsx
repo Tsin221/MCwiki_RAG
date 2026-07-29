@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { ChatMessage } from './components/chat/ChatMessage'
 import { QuestionComposer } from './components/chat/QuestionComposer'
 import { SourceCard } from './components/chat/SourceCard'
-import SceneFallback from './components/scene/SceneFallback'
+import { SceneLayer } from './components/scene/SceneLayer'
 import { useAnswerStream } from './hooks/useAnswerStream'
 
 const EXAMPLE_QUESTIONS = [
@@ -38,7 +38,7 @@ export default function App() {
 
   return (
     <div className="app-shell" data-phase={answer.phase}>
-      <SceneFallback />
+      <SceneLayer phase={answer.phase} />
       <header className="site-header">
         <a className="brand" href="/" aria-label="MC Wiki 助手首页">
           <span className="brand-cube" aria-hidden="true">

@@ -482,6 +482,17 @@
   pointer-events: none;
 }
 
+.scene-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.scene-canvas canvas {
+  pointer-events: none !important;
+}
+
 .fallback-glow {
   position: absolute;
   top: 32%;
