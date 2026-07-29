@@ -8,7 +8,7 @@
 
 当前文档用于说明首期技术方案。后续引入新的模型、检索方式或工程组件时，再持续更新。
 
-## 2. 当前技术流程
+## 2. 目标技术流程
 
 ```text
 数据清洗与分块
@@ -22,10 +22,27 @@ Reranker 精排
 LLM 生成回答
 ```
 
-### 2.1 当前工程选型
+### 2.1 当前实现状态
+
+- **已完成**：数据清洗与分块；
+- **已完成**：Ollama Embedding 批量生成与 Qdrant 向量入库；
+- **已完成**：SQLite FTS5 + trigram BM25 索引与查询模块；
+- **已完成**：查询向量化与 Qdrant Top-K 语义召回；
+- **已完成**：BM25 + Embedding 双路召回与 RRF 融合；
+- **已完成**：FastAPI `POST /search`；
+- **已完成**：15 题检索评测集与首次真实服务基线；
+- **后续阶段**：Reranker、回答生成 LLM、引用展示和前端。
+
+因此，本文中的完整流程是目标架构，不表示所有环节都已经实现。当前已经完成离线
+知识库与索引底座，但尚未形成可对外提供问答的完整 RAG 助手。
+
+项目未来计划扩展为可信度优先、受限联网的 Agentic RAG，但当前不实施。未来方案、
+安全边界和实施前置条件见 `docs/ideas/agentic-rag.md`。
+
+### 2.2 当前工程选型
 
 - 后端：FastAPI；
-- 前端：React + TypeScript + Vite；
+- 前端规划：React + TypeScript + Vite，尚未开始实现；
 - Python 版本与依赖：uv，代码统一放在 `code/`；
 - BM25：SQLite FTS5 + trigram，适配中文关键词检索；
 - Embedding：Ollama + `qwen3-embedding:0.6b`，输出 1024 维向量；
@@ -111,6 +128,19 @@ uv run python -m rag_ingest.vector_ingest
 小于 `indexing_threshold` 的尾部 segment 可能不会计入 `indexed_vectors_count`，
 但仍可通过全量扫描参与检索。
 
+查询语义召回入口为 `rag_retrieval.semantic.SemanticRetriever`。它使用相同的
+Ollama 模型生成查询向量，再调用 Qdrant Top-K 查询；结果包含 chunk ID、标题、
+正文、来源和相似度。空白查询返回空列表，`limit <= 0` 会抛出 `ValueError`，
+Ollama embedding 维度和 Qdrant payload 也会在边界进行校验。
+
+双路融合入口为 `rag_retrieval.hybrid.HybridRetriever`。它分别执行 BM25 和语义
+召回，按 chunk ID 去重，再使用 RRF 合并两路名次。融合结果保留 BM25 排名、语义
+排名和 RRF 分数，不直接混合数值范围不同的原始分数。
+
+FastAPI 应用入口为 `rag_api:app`，对外提供 `POST /search`。请求支持 `query`、
+`limit`、`bm25Limit` 和 `semanticLimit`；响应返回统一的 camelCase 结果字段。
+空白问题和超出范围的 limit 会在 API 边界被拒绝。
+
 ### 3.3 RRF 排名融合
 
 使用 RRF（Reciprocal Rank Fusion）合并 BM25 和 Embedding 的召回结果。
@@ -150,18 +180,33 @@ RRF 主要根据文档块在不同结果列表中的排名计算融合分数，�
 7. LLM 根据问题和上下文生成回答；
 8. 系统返回回答，并尽可能展示引用来源。
 
-## 5. 首期实现范围
+## 5. 分阶段实现范围
 
-首期重点是跑通完整链路并验证检索质量：
+### 5.1 当前阶段：混合检索 MVP
+
+当前阶段先跑通并评测检索链路：
 
 - 支持一种或少量固定格式的数据源；
-- 完成基础的数据清洗、分块和元数据保存；
-- 实现 BM25 与 Embedding 双路召回；
-- 实现 RRF 排名融合；
-- 接入一个 Reranker；
+- 数据清洗、分块和元数据保存（已完成）；
+- BM25 索引与查询（已完成）；
+- 文档向量生成与 Qdrant 入库（已完成）；
+- 查询文本向量化与 Qdrant Top-K 召回（已完成）；
+- BM25 与 Embedding 双路召回（已完成）；
+- RRF 排名融合（已完成）；
+- FastAPI `/search`（已完成）；
+- 10～20 个带正确来源的基础评测问题（已完成，共 15 题）。
+
+上述检索、接口和评测工作已经完成，混合检索 MVP 已标记为完成。当前 15 题首次
+基线的 Hit@10 为 14/15（93.33%），MRR@10 为 0.7911。Java版 1.21 内容问题未在
+Top-10 命中，已保留为后续回归目标。
+
+### 5.2 后续阶段：完整 RAG 问答
+
+- 根据检索评测结果选择并接入 Reranker；
 - 接入一个 LLM 生成回答；
 - 在回答中保留可追踪的来源信息；
-- 建立一组基础测试问题，用于后续效果对比。
+- 实现前端与完整问答交互；
+- 评测回答准确性、引用准确性和无答案处理。
 
 首期暂不追求复杂的 Agent、多轮任务编排或大量数据源接入。
 
@@ -197,7 +242,7 @@ RRF 主要根据文档块在不同结果列表中的排名计算融合分数，�
 
 当技术方案发生变化时，请同步更新：
 
-1. “当前技术流程”中的流程图；
+1. “目标技术流程”和“当前实现状态”；
 2. 对应环节的职责和输入输出；
 3. 首期实现范围或后续方向；
 4. 评测结果及变更原因。

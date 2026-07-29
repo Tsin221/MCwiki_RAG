@@ -31,11 +31,37 @@ Redis 或 Elasticsearch。
 - Collection 状态：`green`；
 - Optimizer 状态：`ok`；
 - 写入队列：空；
-- 自动化测试：12 项通过。
+- BM25 数据库：`data/processed/bm25.db`；
+- BM25 实现：SQLite FTS5 + trigram；
+- BM25 内容表与 FTS 表：均为 41,368 条；
+- BM25 查询模块：`code/rag_retrieval/bm25.py`；
+- 语义查询模块：`code/rag_retrieval/semantic.py`；
+- 查询 embedding 和 Qdrant Top-K 语义召回已完成；
+- RRF 融合模块：`code/rag_retrieval/hybrid.py`；
+- FastAPI 应用：`code/rag_api.py`；
+- `POST /search` 已通过真实服务验收；
+- 15 题评测集和首次基线已生成；
+- 自动化测试：35 项通过。
 
 向量写入已完成。再次运行写入命令时，程序会确认 41,368 条均已存在、剩余 0 条。
 
-## 3. 已实现的向量写入行为
+BM25 索引也已完成。重复执行构建命令不会产生重复记录，并会同步更新变化记录、
+删除源文件中已不存在的记录。
+
+## 3. 已完成的实现
+
+### 3.1 数据清洗与分块
+
+实现文件：`code/rag_ingest/pipeline.py`
+
+- 统一 Unicode、换行和空白格式；
+- 移除不可见字符；
+- 优先在自然边界处分块；
+- 支持重叠文本；
+- 生成稳定、可追踪的文档与文档块 ID；
+- 保存来源及分块 metadata。
+
+### 3.2 向量写入
 
 入口：
 
@@ -59,7 +85,48 @@ uv run python -m rag_ingest.vector_ingest
 
 相关测试：`code/tests/test_vector_ingest.py`
 
-## 4. 重要说明
+### 3.3 BM25 索引与查询
+
+入口：
+
+```powershell
+cd E:\Work\MCwiki_RAG\code
+uv run python -m rag_ingest.bm25_index
+```
+
+实现文件：
+
+- `code/rag_ingest/bm25_index.py`
+- `code/rag_retrieval/bm25.py`
+
+关键行为：
+
+- 使用 SQLite FTS5 外部内容表和 `trigram` tokenizer；
+- 保存 chunk ID、标题、正文、来源和 metadata；
+- 重复构建会更新变化内容并清理失效记录；
+- 查询结果返回 chunk ID、标题、正文、来源和 BM25 分数；
+- 查询文本按字面文本处理，不开放 FTS5 查询语法；
+- 空白查询和无命中查询返回空列表。
+
+相关测试：`code/tests/test_bm25.py`
+
+### 3.4 查询向量化与语义召回
+
+实现文件：`code/rag_retrieval/semantic.py`
+
+关键行为：
+
+- `SemanticRetriever` 长期持有 Ollama HTTP 客户端和 Qdrant 客户端；
+- 使用 `qwen3-embedding:0.6b` 为查询生成 1024 维向量；
+- 查询 `mcwiki_chunks` 并返回统一的 `SemanticResult`；
+- 结果包含 chunk ID、标题、正文、来源和相似度；
+- 空白查询直接返回空列表；
+- 校验 limit、Ollama embedding 数量与维度、Qdrant payload 和分数；
+- 已使用真实 Ollama 与 Qdrant 完成查询验收。
+
+相关测试：`code/tests/test_semantic.py`
+
+## 4. 重要说明与边界
 
 Qdrant Dashboard 中的 `indexed_vectors_count` 可能小于 `points_count`。低于
 `indexing_threshold` 的尾部小 segment 会通过全量扫描参与检索，因此这不表示
@@ -68,53 +135,52 @@ Qdrant Dashboard 中的 `indexed_vectors_count` 可能小于 `points_count`。�
 不要删除或重建 `mcwiki_chunks`，除非用户明确要求重新生成全部向量。现有向量生成
 耗时较长，但已经完整持久化到 Qdrant 数据卷 `mcwiki_qdrant_storage`。
 
-当前工作区不是 Git 仓库，不要假设可以提交或回滚 Git commit。
+当前工作区已经是 Git 仓库。修改前应检查工作区状态，并保留用户已有改动。
 
-## 5. 下一项任务
+FastAPI、Uvicorn 等依赖已经安装，但当前还没有 FastAPI 应用或 `/search` 接口。
+React 前端、Reranker 和回答生成 LLM 也尚未实现。
 
-创建 SQLite FTS5 BM25 索引。这是实现双路召回前唯一缺失的检索数据底座。
+## 5. 当前阶段结论
 
-建议输出：
+本地混合检索 MVP 已完成，包括查询 embedding、Qdrant Top-K、BM25、RRF、
+`POST /search` 和首次评测基线。
 
-- 数据库：`data/processed/bm25.db`；
-- 输入：`data/processed/chunks.jsonl`；
-- 索引内容至少包括：chunk ID、title、text、source、metadata；
-- 中文检索使用当前方案约定的 SQLite FTS5 + trigram；
-- 提供可重复执行的索引构建命令；
-- 提供 BM25 查询函数或模块，为后续 `/search` 复用。
+评测文件：
 
-## 6. 下一项任务验收标准
+- `data/evaluation/retrieval_questions.json`
+- `data/evaluation/baseline-2026-07-29.json`
 
-1. SQLite 数据库成功创建；
-2. 索引文档数与 chunks 数量一致，均为 41,368；
-3. 重复构建不会产生重复记录；
-4. 能用中文关键词、Minecraft 专有名词和版本号执行查询；
-5. 查询结果返回 chunk ID、title、text、source 和 BM25 分数；
-6. 空查询与无结果查询有明确行为；
-7. 新增逻辑有自动化测试，且现有 12 项测试继续通过；
-8. 完成后更新 `PROJECT_STATUS.md`、`MVP_PLAN.md` 和
-   `RAG_ASSISTANT_GUIDE.md`。
+首次基线：
 
-## 7. 后续顺序
+- Hit@10：14/15（93.33%）；
+- MRR@10：0.7911；
+- 已知未命中：`java-1-21-content`。
 
-完成 BM25 后按以下顺序继续：
+不要删除失败问题或修改正确来源来提高表面指标。下一步应先分析版本问题未命中的
+原因，或者在确定云端模型供应商后进入 Reranker 与回答生成阶段。
 
-1. 实现查询文本的 Ollama embedding；
-2. 实现 Qdrant Top-K 语义召回；
-3. 合并 BM25 与 Embedding 结果；
-4. 实现 RRF 排名融合；
-5. 提供 FastAPI `/search`；
-6. 准备 10～20 个带正确来源的评测问题；
-7. 检索质量稳定后再选择 Reranker 和回答生成 LLM。
+## 6. 后续顺序
 
-## 8. 常用命令
+1. 分析并优化 Java版 1.21 问题的检索未命中；
+2. 根据评测结果决定是否接入 Reranker；
+3. 选择云端回答生成 LLM；
+4. 生成带可追踪来源的回答；
+5. 实现前端；
+6. 本地 RAG 稳定后，再评估 Agentic RAG。
+
+未来受限联网 Agentic RAG 方案见 `docs/ideas/agentic-rag.md`，当前不实施，也不在
+本阶段引入 LangGraph。
+
+## 7. 常用命令
 
 ```powershell
 cd E:\Work\MCwiki_RAG\code
 uv sync
 uv run python -m unittest discover -s tests -v
 uv run python -m rag_ingest
+uv run python -m rag_ingest.bm25_index
 uv run python -m rag_ingest.vector_ingest
+uv run uvicorn rag_api:app --host 127.0.0.1 --port 8000
 ```
 
 相关状态与设计文档：
