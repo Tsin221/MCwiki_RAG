@@ -1,0 +1,19 @@
+# Python environments and caches
+**/.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Generated SQLite indexes and sidecar files
+data/processed/*.db
+data/processed/*.db-*
+
+# Test and runtime leftovers
+code/tests/tmp*/
+*.log
