@@ -10,6 +10,10 @@
 当前可以提供本地知识库的混合检索结果，但还不能提供完整 RAG 问答：Reranker、
 回答生成 LLM 和前端均尚未接入。
 
+下一阶段计划使用 DeepSeek `deepseek-v4-pro` 生成流式回答，并实现带匿名访客
+Cookie 和轻量 Three.js 动态背景的 React 问答界面。规格见
+`docs/specs/qa-web-mvp.md`，视觉方案见 `docs/frontend-threejs/`，当前尚未实施。
+
 未来计划构建可信度优先、受限联网的 Agentic RAG；预期方案见
 `docs/ideas/agentic-rag.md`。该方案当前暂缓实施，本阶段不引入 LangGraph。
 
@@ -89,11 +93,12 @@ Dashboard 中的 `indexed_vectors_count` 可能小于 `points_count`。低于
 
 ## 后续阶段
 
-1. 根据评测结果选择并接入 Reranker；
-2. 选择回答生成 LLM；
-3. 生成带可追踪来源的回答；
-4. 实现前端；
-5. 补充完整链路评测与无答案处理。
+1. 使用 `deepseek-v4-pro` 生成带可追踪来源的回答；
+2. 提供基于 SSE 的流式 `POST /answers`；
+3. 使用匿名 Cookie 区分浏览器访客；
+4. 实现带轻量 Three.js 动态背景的 React 流式问答界面；
+5. 补充完整链路评测与无答案处理；
+6. 根据完整链路评测决定是否接入 Reranker。
 
 ## 暂时不需要
 
@@ -111,7 +116,7 @@ SQLite BM25 + Qdrant Embedding
         FastAPI /search
 ```
 
-检索链路稳定后，再增加 Reranker、LLM 回答和前端。
+检索链路已完成。下一步按 `docs/specs/qa-web-mvp.md` 增加 DeepSeek 回答和前端。
 
 ## 常用命令
 

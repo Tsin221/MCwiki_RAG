@@ -2,8 +2,8 @@
 
 目标：尽快跑通一条可评测的最小 RAG 链路，不提前建设复杂功能。
 
-当前阶段：数据清洗、向量入库和 BM25 索引底座已经完成并验收；正在进入在线
-混合检索 MVP 的实现阶段。
+当前阶段：数据清洗、索引底座和在线混合检索 MVP 已经完成并验收；下一阶段计划
+实现 DeepSeek 回答生成和简单 Web 问答界面。
 
 ## 已完成
 
@@ -45,6 +45,23 @@ Reranker、回答生成 LLM、前端和未来 Agentic RAG 属于后续阶段。
 未来 Agentic RAG 方案已记录在 `docs/ideas/agentic-rag.md`，当前不实施，也不在
 本阶段引入 LangGraph。
 
+## 下一阶段：问答 Web MVP
+
+下一阶段规格见 `docs/specs/qa-web-mvp.md`，当前已经确认，尚未开始实现。Three.js
+前端视觉方案见 `docs/frontend-threejs/`。
+
+目标包括：
+
+1. 使用 `deepseek-v4-pro` 基于本地检索证据生成回答；
+2. 提供基于 SSE 的流式 `POST /answers`；
+3. 使用安全属性明确的匿名 Cookie 区分浏览器访客；
+4. 实现带轻量 Three.js 动态背景的 React 流式问答界面；
+5. 展示回答引用和 Wiki 来源；
+6. 建立回答准确性、引用准确性和无答案处理基线。
+
+匿名 Cookie 不等同于登录。第一版不引入 LangGraph、联网搜索、账号系统、会话
+持久化和管理后台。
+
 ## 运行
 
 ```powershell
@@ -63,4 +80,5 @@ BM25 构建命令默认读取 `data/processed/chunks.jsonl` 并同步
 向量写入命令可重复执行。它会先读取 `mcwiki_chunks` 中已有的点 ID，只处理缺失
 文档块，因此适合在长时间任务中断后继续运行。
 
-检索链路稳定后，再接入 Reranker、回答生成 LLM 和前端。
+下一步先按问答 Web MVP 规格接入回答生成和前端，再根据完整链路评测决定是否需要
+Reranker。
