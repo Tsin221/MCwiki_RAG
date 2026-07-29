@@ -17,3 +17,9 @@ data/processed/*.db-*
 # Test and runtime leftovers
 code/tests/tmp*/
 *.log
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/*.tsbuildinfo
