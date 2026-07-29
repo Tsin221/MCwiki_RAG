@@ -9,6 +9,7 @@ from rag_answer import (
     DeepSeekAnswerClient,
     DeepSeekSettings,
     ModelResponseError,
+    ModelTimeoutError,
     build_evidence,
 )
 from rag_retrieval.hybrid import HybridResult
@@ -159,6 +160,40 @@ class DeepSeekAnswerClientTests(unittest.IsolatedAsyncioTestCase):
             )
 
             with self.assertRaises(ModelResponseError):
+                _ = [
+                    chunk
+                    async for chunk in client.stream_answer(
+                        "问题",
+                        [
+                            AnswerEvidence(
+                                id=1,
+                                chunk_id="chunk",
+                                title="标题",
+                                url="https://example.test/wiki",
+                                text="证据",
+                                excerpt="证据",
+                            )
+                        ],
+                    )
+                ]
+
+    async def test_maps_transport_timeout_without_exposing_details(self):
+        async def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("upstream host details", request=request)
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            client = DeepSeekAnswerClient(
+                settings=DeepSeekSettings(
+                    api_key="test-secret",
+                    base_url="https://api.deepseek.com",
+                    model="deepseek-v4-pro",
+                ),
+                http_client=http_client,
+            )
+
+            with self.assertRaises(ModelTimeoutError):
                 _ = [
                     chunk
                     async for chunk in client.stream_answer(

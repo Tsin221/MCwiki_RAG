@@ -30,6 +30,10 @@ class ModelUnavailableError(RuntimeError):
     """Raised when the model endpoint cannot complete a request."""
 
 
+class ModelTimeoutError(ModelUnavailableError):
+    """Raised when the model endpoint exceeds its request timeout."""
+
+
 class ModelResponseError(ModelUnavailableError):
     """Raised when the model returns an invalid or incomplete stream."""
 
@@ -222,7 +226,9 @@ class DeepSeekAnswerClient:
                         yield content
         except ModelResponseError:
             raise
-        except (httpx.HTTPError, httpx.TimeoutException) as error:
+        except httpx.TimeoutException as error:
+            raise ModelTimeoutError("model request timed out") from error
+        except httpx.HTTPError as error:
             raise ModelUnavailableError("model request failed") from error
 
         if not saw_done:
