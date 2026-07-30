@@ -20,6 +20,9 @@ SYSTEM_PROMPT = """你是 MC Wiki 助手。请严格遵守以下规则：
 """
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro"
+DEFAULT_MAX_CONTEXT_CHARS = 12_000
+DEFAULT_ANSWER_TEMPERATURE = 0.2
+DEFAULT_ANSWER_THINKING_TYPE = "disabled"
 
 
 class AnswerConfigurationError(RuntimeError):
@@ -85,7 +88,7 @@ def _excerpt(text: str, *, max_chars: int = 220) -> str:
 def build_evidence(
     results: Sequence[HybridResult],
     *,
-    max_context_chars: int = 12_000,
+    max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
 ) -> list[AnswerEvidence]:
     """Select ranked, non-duplicate evidence within a conservative character budget."""
     if max_context_chars <= 0:
@@ -183,8 +186,8 @@ class DeepSeekAnswerClient:
                 },
             ],
             "stream": True,
-            "temperature": 0.2,
-            "thinking": {"type": "disabled"},
+            "temperature": DEFAULT_ANSWER_TEMPERATURE,
+            "thinking": {"type": DEFAULT_ANSWER_THINKING_TYPE},
         }
         headers = {
             "authorization": f"Bearer {self._settings.api_key}",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
@@ -17,8 +18,12 @@ import httpx
 
 from rag_answer import (
     AnswerEvidence,
+    DEFAULT_ANSWER_TEMPERATURE,
+    DEFAULT_ANSWER_THINKING_TYPE,
+    DEFAULT_MAX_CONTEXT_CHARS,
     DeepSeekAnswerClient,
     DeepSeekSettings,
+    SYSTEM_PROMPT,
     build_evidence,
 )
 from rag_retrieval.hybrid import HybridResult
@@ -76,6 +81,35 @@ def load_evaluation_cases(
     return cases
 
 
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def build_evaluation_configuration(
+    settings: DeepSeekSettings,
+    cases: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Describe every fixed input that must remain stable across a resumed run."""
+    serialized_cases = json.dumps(
+        list(cases),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return {
+        "model": settings.model,
+        "baseUrl": settings.base_url,
+        "bm25Limit": 20,
+        "semanticLimit": 20,
+        "evidenceLimit": 8,
+        "maxContextChars": DEFAULT_MAX_CONTEXT_CHARS,
+        "temperature": DEFAULT_ANSWER_TEMPERATURE,
+        "thinkingType": DEFAULT_ANSWER_THINKING_TYPE,
+        "systemPromptFingerprint": _sha256_text(SYSTEM_PROMPT),
+        "datasetFingerprint": _sha256_text(serialized_cases),
+    }
+
+
 def validate_resume_output(
     output: Mapping[str, Any],
     *,
@@ -94,6 +128,29 @@ def validate_resume_output(
             f"resume output contains unknown case ids: {', '.join(sorted(unknown_ids))}"
         )
     return set(completed_ids)
+
+
+def validate_complete_output(
+    output: Mapping[str, Any],
+    *,
+    expected_case_ids: Sequence[str],
+) -> None:
+    """Reject partial, duplicate, or foreign cases before calculating metrics."""
+    completed_ids = [str(case["id"]) for case in output.get("cases", [])]
+    if len(completed_ids) != len(set(completed_ids)):
+        raise ValueError("evaluation output contains duplicate case ids")
+
+    expected = set(expected_case_ids)
+    completed = set(completed_ids)
+    missing_ids = expected - completed
+    unknown_ids = completed - expected
+    if missing_ids or unknown_ids:
+        details = []
+        if missing_ids:
+            details.append(f"missing: {', '.join(sorted(missing_ids))}")
+        if unknown_ids:
+            details.append(f"unknown: {', '.join(sorted(unknown_ids))}")
+        raise ValueError(f"evaluation run is incomplete ({'; '.join(details)})")
 
 
 def normalize_source_url(value: str) -> str:
@@ -254,8 +311,14 @@ def _average(values: Sequence[float]) -> float:
 def summarize_results(
     raw_run: Mapping[str, Any],
     reviews: Mapping[str, Mapping[str, Any]],
+    *,
+    expected_case_ids: Sequence[str],
 ) -> dict[str, Any]:
     """Combine deterministic metrics with explicit human review scores."""
+    validate_complete_output(
+        raw_run,
+        expected_case_ids=expected_case_ids,
+    )
     cases = list(raw_run["cases"])
     answerable = [case for case in cases if case["kind"] == "answerable"]
     unanswerable = [case for case in cases if case["kind"] == "unanswerable"]
@@ -271,9 +334,12 @@ def summarize_results(
     faithfulness = [
         float(reviews[case["id"]]["faithfulness"]) for case in answerable
     ]
-    abstentions = [
-        bool(reviews[case["id"]]["abstainedReliably"]) for case in unanswerable
-    ]
+    abstentions = []
+    for case in unanswerable:
+        abstained_reliably = reviews[case["id"]]["abstainedReliably"]
+        if not isinstance(abstained_reliably, bool):
+            raise ValueError("abstainedReliably review values must be boolean")
+        abstentions.append(abstained_reliably)
     for score in (*correctness, *completeness, *faithfulness):
         if score < 0 or score > 2:
             raise ValueError("manual scores must be between 0 and 2")
@@ -364,13 +430,7 @@ async def run_evaluation(
 
     cases = load_evaluation_cases(answerable_path, unanswerable_path)
     settings = DeepSeekSettings.from_env()
-    configuration = {
-        "model": settings.model,
-        "baseUrl": settings.base_url,
-        "bm25Limit": 20,
-        "semanticLimit": 20,
-        "evidenceLimit": 8,
-    }
+    configuration = build_evaluation_configuration(settings, cases)
     if output_path.exists():
         output = _load_json(output_path)
         completed_ids = validate_resume_output(
@@ -440,6 +500,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "summarize",
         help="combine raw results with manual reviews",
     )
+    summarize_parser.add_argument(
+        "--answerable",
+        type=Path,
+        default=DEFAULT_ANSWERABLE_CASES,
+    )
+    summarize_parser.add_argument(
+        "--unanswerable",
+        type=Path,
+        default=DEFAULT_UNANSWERABLE_CASES,
+    )
     summarize_parser.add_argument("--input", type=Path, required=True)
     summarize_parser.add_argument("--reviews", type=Path, required=True)
     summarize_parser.add_argument("--output", type=Path, required=True)
@@ -460,11 +530,16 @@ def main() -> None:
 
     raw_run = _load_json(args.input)
     reviews = _load_json(args.reviews)
+    cases = load_evaluation_cases(args.answerable, args.unanswerable)
     summary = {
         "date": datetime.now().astimezone().isoformat(timespec="seconds"),
         "sourceRun": str(args.input),
         "configuration": raw_run.get("configuration", {}),
-        **summarize_results(raw_run, reviews),
+        **summarize_results(
+            raw_run,
+            reviews,
+            expected_case_ids=[str(case["id"]) for case in cases],
+        ),
     }
     _write_json(args.output, summary)
     print(f"saved summary to {args.output}")

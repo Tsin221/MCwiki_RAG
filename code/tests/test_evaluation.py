@@ -3,8 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from rag_answer import DeepSeekSettings
 from rag_evaluation import (
     analyze_answer,
+    build_evaluation_configuration,
     load_evaluation_cases,
     normalize_source_url,
     run_answer_case,
@@ -97,6 +99,47 @@ class LoadEvaluationCasesTests(unittest.TestCase):
                 expected_case_ids=["known"],
             )
 
+    def test_configuration_fingerprint_changes_with_case_content(self):
+        settings = DeepSeekSettings(
+            api_key="test-secret",
+            base_url="https://api.deepseek.com",
+            model="deepseek-v4-pro",
+        )
+        original = build_evaluation_configuration(
+            settings,
+            [
+                {
+                    "id": "known",
+                    "question": "原始问题",
+                    "kind": "answerable",
+                    "category": "known",
+                    "expected_sources": ["https://example.test/known"],
+                }
+            ],
+        )
+        changed = build_evaluation_configuration(
+            settings,
+            [
+                {
+                    "id": "known",
+                    "question": "修改后的问题",
+                    "kind": "answerable",
+                    "category": "known",
+                    "expected_sources": ["https://example.test/known"],
+                }
+            ],
+        )
+
+        self.assertNotEqual(
+            original["datasetFingerprint"],
+            changed["datasetFingerprint"],
+        )
+        self.assertIn("systemPromptFingerprint", original)
+        self.assertEqual(original["maxContextChars"], 12_000)
+        self.assertEqual(original["temperature"], 0.2)
+        self.assertEqual(original["thinkingType"], "disabled")
+        self.assertNotIn("test-secret", json.dumps(original))
+
 
 class AnswerAnalysisTests(unittest.TestCase):
     def test_reports_expected_source_and_invalid_citation_ids(self):
@@ -186,7 +229,11 @@ class SummaryTests(unittest.TestCase):
             },
         }
 
-        summary = summarize_results(raw_run, reviews)
+        summary = summarize_results(
+            raw_run,
+            reviews,
+            expected_case_ids=["answerable", "unanswerable"],
+        )
 
         self.assertEqual(summary["metrics"]["answerableCount"], 1)
         self.assertEqual(summary["metrics"]["correctnessAverage"], 2.0)
@@ -194,6 +241,74 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["metrics"]["citationValidityRate"], 0.5)
         self.assertEqual(summary["metrics"]["abstentionRate"], 1.0)
         self.assertFalse(summary["meetsSuggestedThresholds"])
+
+    def test_rejects_incomplete_raw_run_before_calculating_thresholds(self):
+        raw_run = {
+            "cases": [
+                {
+                    "id": "answerable",
+                    "kind": "answerable",
+                    "objective": {
+                        "expectedSourceRetrieved": True,
+                        "expectedSourceCited": True,
+                        "citationCount": 1,
+                        "validCitationCount": 1,
+                        "invalidCitationIds": [],
+                    },
+                },
+                {
+                    "id": "unanswerable",
+                    "kind": "unanswerable",
+                    "objective": {
+                        "citationCount": 0,
+                        "validCitationCount": 0,
+                        "invalidCitationIds": [],
+                    },
+                },
+            ]
+        }
+        reviews = {
+            "answerable": {
+                "correctness": 2,
+                "completeness": 2,
+                "faithfulness": 2,
+            },
+            "unanswerable": {"abstainedReliably": True},
+        }
+
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            summarize_results(
+                raw_run,
+                reviews,
+                expected_case_ids=["answerable", "unanswerable", "missing"],
+            )
+
+    def test_rejects_string_abstention_review_value(self):
+        raw_run = {
+            "cases": [
+                {
+                    "id": "unanswerable",
+                    "kind": "unanswerable",
+                    "objective": {
+                        "citationCount": 0,
+                        "validCitationCount": 0,
+                        "invalidCitationIds": [],
+                    },
+                }
+            ]
+        }
+        reviews = {
+            "unanswerable": {
+                "abstainedReliably": "false",
+            }
+        }
+
+        with self.assertRaisesRegex(ValueError, "boolean"):
+            summarize_results(
+                raw_run,
+                reviews,
+                expected_case_ids=["unanswerable"],
+            )
 
 
 if __name__ == "__main__":
