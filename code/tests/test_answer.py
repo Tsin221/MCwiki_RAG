@@ -133,6 +133,16 @@ class DeepSeekAnswerClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(captured_request["authorization"], "Bearer test-secret")
         self.assertEqual(captured_request["body"]["model"], "deepseek-v4-pro")
         self.assertTrue(captured_request["body"]["stream"])
+        system_prompt = captured_request["body"]["messages"][0]["content"]
+        self.assertIn(
+            "问题包含多个子问题或“哪些”时，逐项回答",
+            system_prompt,
+        )
+        self.assertIn(
+            "数字、否定词和大小关系必须与证据保持一致",
+            system_prompt,
+        )
+        self.assertIn("输出前逐项核对", system_prompt)
         self.assertIn(
             "[1] 标题：红石中继器",
             captured_request["body"]["messages"][1]["content"],
