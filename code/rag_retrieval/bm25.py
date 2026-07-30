@@ -56,6 +56,18 @@ _VERSION_EDITION_NAMES = {
     "基岩": "基岩",
     "教育": "教育",
 }
+_VERSION_OVERVIEW_TERMS = (
+    "版本",
+    "更新",
+    "加入",
+    "新增",
+    "内容",
+    "改动",
+    "变化",
+    "特性",
+    "发布",
+)
+_QUERY_DECORATION_PATTERN = re.compile(r"[\s?？!！,，。:：;；]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +191,22 @@ def _literal_fts_query(query: str) -> str:
 def _search_phrase(query: str) -> str:
     match = _VERSION_QUERY_PATTERN.search(query)
     if match is None:
+        return query
+
+    query_without_product_name = re.sub(
+        "minecraft",
+        "",
+        query,
+        flags=re.IGNORECASE,
+    )
+    compact_query = _QUERY_DECORATION_PATTERN.sub(
+        "",
+        query_without_product_name,
+    )
+    compact_match = _QUERY_DECORATION_PATTERN.sub("", match.group(0))
+    asks_about_version = compact_query.casefold() == compact_match.casefold()
+    asks_about_changes = any(term in query for term in _VERSION_OVERVIEW_TERMS)
+    if not asks_about_version and not asks_about_changes:
         return query
 
     edition = match.group("edition")

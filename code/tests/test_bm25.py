@@ -158,6 +158,14 @@ class BM25QueryTests(_BM25Fixture, unittest.TestCase):
         self.assertEqual(results[0].chunk_id, "chunk-java-121")
         self.assertGreater(results[0].score, results[1].score)
 
+    def test_does_not_reduce_version_qualified_gameplay_question_to_version_only(self):
+        results = search_bm25(
+            self.database_path,
+            "Java版1.21钻石矿石在哪里生成？",
+        )
+
+        self.assertEqual(results, [])
+
     def test_empty_and_no_match_queries_return_empty_lists(self):
         self.assertEqual(search_bm25(self.database_path, ""), [])
         self.assertEqual(search_bm25(self.database_path, " \t\n"), [])
