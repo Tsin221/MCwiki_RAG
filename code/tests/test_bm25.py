@@ -126,6 +126,14 @@ class BM25QueryTests(_BM25Fixture, unittest.TestCase):
         self.assertEqual(minecraft_results[0].chunk_id, "chunk-java-121")
         self.assertEqual(version_results[0].chunk_id, "chunk-java-121")
 
+    def test_recalls_exact_version_title_from_natural_language_question(self):
+        results = search_bm25(
+            self.database_path,
+            "Minecraft Java版1.21主要加入了哪些内容？",
+        )
+
+        self.assertEqual(results[0].chunk_id, "chunk-java-121")
+
     def test_empty_and_no_match_queries_return_empty_lists(self):
         self.assertEqual(search_bm25(self.database_path, ""), [])
         self.assertEqual(search_bm25(self.database_path, " \t\n"), [])

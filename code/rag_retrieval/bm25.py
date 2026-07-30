@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections.abc import Iterator, Mapping
 from contextlib import closing
@@ -44,6 +45,17 @@ CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
     VALUES (new.rowid, new.title, new.text);
 END;
 """
+_VERSION_QUERY_PATTERN = re.compile(
+    r"(?:(?P<edition>java|bedrock|基岩|教育)\s*版?\s*)?"
+    r"(?P<version>\d+(?:\.\d+)+(?:-(?:pre|rc)\d+)?)",
+    re.IGNORECASE,
+)
+_VERSION_EDITION_NAMES = {
+    "java": "Java",
+    "bedrock": "基岩",
+    "基岩": "基岩",
+    "教育": "教育",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +176,19 @@ def _literal_fts_query(query: str) -> str:
     return f'"{query.replace('"', '""')}"'
 
 
+def _search_phrase(query: str) -> str:
+    match = _VERSION_QUERY_PATTERN.search(query)
+    if match is None:
+        return query
+
+    edition = match.group("edition")
+    version = match.group("version")
+    if edition is None:
+        return version
+    canonical_edition = _VERSION_EDITION_NAMES[edition.casefold()]
+    return f"{canonical_edition}版{version}"
+
+
 def search_bm25(
     database_path: Path,
     query: str,
@@ -182,6 +207,7 @@ def search_bm25(
         raise FileNotFoundError(database_path)
 
     with closing(sqlite3.connect(database_path)) as connection:
+        search_phrase = _search_phrase(normalized_query)
         rows = connection.execute(
             """
             SELECT
@@ -189,14 +215,29 @@ def search_bm25(
                 chunks.title,
                 chunks.text,
                 chunks.source,
-                -bm25(chunks_fts, 5.0, 1.0) AS score
+                -bm25(chunks_fts, 5.0, 1.0) AS score,
+                CASE
+                    WHEN chunks.title = ? COLLATE NOCASE
+                     AND chunks.rowid = (
+                        SELECT min(title_match.rowid)
+                        FROM chunks AS title_match
+                        WHERE title_match.title = ? COLLATE NOCASE
+                     )
+                    THEN 1
+                    ELSE 0
+                END AS exact_title_overview
             FROM chunks_fts
             JOIN chunks ON chunks.rowid = chunks_fts.rowid
             WHERE chunks_fts MATCH ?
-            ORDER BY score DESC, chunks.rowid
+            ORDER BY exact_title_overview DESC, score DESC, chunks.rowid
             LIMIT ?
             """,
-            (_literal_fts_query(normalized_query), limit),
+            (
+                search_phrase,
+                search_phrase,
+                _literal_fts_query(search_phrase),
+                limit,
+            ),
         ).fetchall()
 
     return [
