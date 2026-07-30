@@ -134,6 +134,30 @@ class BM25QueryTests(_BM25Fixture, unittest.TestCase):
 
         self.assertEqual(results[0].chunk_id, "chunk-java-121")
 
+    def test_exact_title_priority_is_reflected_in_returned_score(self):
+        self._write_chunks(
+            [
+                self.chunks[1],
+                {
+                    "id": "chunk-version-log",
+                    "title": "版本记录",
+                    "text": " ".join(["Java版1.21"] * 50),
+                    "source": "https://example.test/version-log",
+                    "metadata": {"chunk_index": 0},
+                },
+            ]
+        )
+        build_bm25_index(self.input_path, self.database_path)
+
+        results = search_bm25(
+            self.database_path,
+            "Minecraft Java版1.21主要加入了哪些内容？",
+            limit=2,
+        )
+
+        self.assertEqual(results[0].chunk_id, "chunk-java-121")
+        self.assertGreater(results[0].score, results[1].score)
+
     def test_empty_and_no_match_queries_return_empty_lists(self):
         self.assertEqual(search_bm25(self.database_path, ""), [])
         self.assertEqual(search_bm25(self.database_path, " \t\n"), [])

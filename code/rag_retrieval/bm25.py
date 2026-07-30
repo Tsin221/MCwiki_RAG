@@ -210,26 +210,38 @@ def search_bm25(
         search_phrase = _search_phrase(normalized_query)
         rows = connection.execute(
             """
+            WITH matches AS (
+                SELECT
+                    chunks.chunk_id,
+                    chunks.title,
+                    chunks.text,
+                    chunks.source,
+                    chunks.rowid,
+                    -bm25(chunks_fts, 5.0, 1.0) AS lexical_score,
+                    CASE
+                        WHEN chunks.title = ? COLLATE NOCASE
+                         AND chunks.rowid = (
+                            SELECT min(title_match.rowid)
+                            FROM chunks AS title_match
+                            WHERE title_match.title = ? COLLATE NOCASE
+                         )
+                        THEN 1
+                        ELSE 0
+                    END AS exact_title_overview
+                FROM chunks_fts
+                JOIN chunks ON chunks.rowid = chunks_fts.rowid
+                WHERE chunks_fts MATCH ?
+            )
             SELECT
-                chunks.chunk_id,
-                chunks.title,
-                chunks.text,
-                chunks.source,
-                -bm25(chunks_fts, 5.0, 1.0) AS score,
-                CASE
-                    WHEN chunks.title = ? COLLATE NOCASE
-                     AND chunks.rowid = (
-                        SELECT min(title_match.rowid)
-                        FROM chunks AS title_match
-                        WHERE title_match.title = ? COLLATE NOCASE
-                     )
-                    THEN 1
-                    ELSE 0
-                END AS exact_title_overview
-            FROM chunks_fts
-            JOIN chunks ON chunks.rowid = chunks_fts.rowid
-            WHERE chunks_fts MATCH ?
-            ORDER BY exact_title_overview DESC, score DESC, chunks.rowid
+                chunk_id,
+                title,
+                text,
+                source,
+                lexical_score
+                    + exact_title_overview
+                    * (max(lexical_score) OVER () + 1.0) AS score
+            FROM matches
+            ORDER BY score DESC, rowid
             LIMIT ?
             """,
             (
