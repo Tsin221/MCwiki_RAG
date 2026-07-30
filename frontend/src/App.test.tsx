@@ -75,4 +75,24 @@ describe('App', () => {
       expect.any(AbortSignal),
     )
   })
+
+  it('renders streamed Markdown as semantic answer content', async () => {
+    requestAnswerMock.mockImplementation(async (_question, onEvent) => {
+      onEvent({ type: 'meta', question: 'Where do diamonds generate?' })
+      onEvent({
+        type: 'delta',
+        text: 'Diamond ore generates:\n\n* **Below Y=16** [1]\n* More often near bedrock [2]',
+      })
+      onEvent({ type: 'done', status: 'answered' })
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByRole('textbox'), 'Where do diamonds generate?')
+    await user.click(screen.getByRole('button', { name: '发送问题' }))
+
+    expect(await screen.findByText('Below Y=16', { selector: 'strong' })).toBeVisible()
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.queryByText(/\*\*Below Y=16\*\*/)).not.toBeInTheDocument()
+  })
 })

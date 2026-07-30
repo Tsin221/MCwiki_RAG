@@ -13,6 +13,8 @@
     "@react-three/fiber": "9.6.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
     "three": "0.182.0"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { AnswerMarkdown } from './components/chat/AnswerMarkdown'
 import { ChatMessage } from './components/chat/ChatMessage'
 import { QuestionComposer } from './components/chat/QuestionComposer'
 import { SourceCard } from './components/chat/SourceCard'
@@ -95,12 +96,10 @@ export default function App() {
                   <span>正在查找相关条目</span>
                 </div>
               ) : (
-                <p className="answer-text">
-                  {answer.answer || '正在准备回答…'}
-                  {answer.phase === 'generating' && (
-                    <span className="stream-caret" aria-hidden="true" />
-                  )}
-                </p>
+                <AnswerMarkdown
+                  text={answer.answer}
+                  isStreaming={answer.phase === 'generating'}
+                />
               )}
             </ChatMessage>
 

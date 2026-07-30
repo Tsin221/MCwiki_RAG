@@ -218,7 +218,81 @@
 
 .answer-text {
   color: #e7eef5;
-  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.answer-text > :first-child {
+  margin-top: 0;
+}
+
+.answer-text > :last-child:not(.stream-caret) {
+  margin-bottom: 0;
+}
+
+.answer-text p + p {
+  margin-top: 0.75rem;
+}
+
+.answer-text ul,
+.answer-text ol {
+  margin: 0.65rem 0;
+  padding-left: 1.4rem;
+}
+
+.answer-text li {
+  padding-left: 0.2rem;
+  line-height: 1.75;
+}
+
+.answer-text li + li {
+  margin-top: 0.35rem;
+}
+
+.answer-text strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.answer-text code {
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--border);
+  background: rgb(4 17 29 / 72%);
+  color: #baf8eb;
+  font-size: 0.9em;
+}
+
+.answer-text pre {
+  overflow-x: auto;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  background: rgb(4 17 29 / 82%);
+}
+
+.answer-text pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.answer-text blockquote {
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--accent);
+  color: var(--muted);
+}
+
+.answer-text table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.answer-text th,
+.answer-text td {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  text-align: left;
 }
 
 .stream-caret {
