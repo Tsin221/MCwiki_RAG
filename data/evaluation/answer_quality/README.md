@@ -4,6 +4,16 @@
 `../retrieval_questions.json` 中的 15 个可回答问题，并补充
 `unanswerable_questions.json` 中的资料不足或域外问题。
 
+当前最新结果为定向质量修复基线：
+
+- 报告：`REPORT-2026-07-30-quality-fix.md`；
+- 原始结果：`raw-2026-07-30-quality-fix.json`；
+- 人工复核：`reviews-2026-07-30-quality-fix.json`；
+- 汇总基线：`baseline-2026-07-30-quality-fix.json`。
+
+该基线修复了 Java 版 1.21 召回、灾厄巡逻队光照条件反向解读和苦力怕条件掉落
+遗漏。15 个期望来源全部进入证据并被引用，三个评分维度均为 2.00/2。
+
 ## 评测目标
 
 回答质量不能只用“模型觉得回答不错”来判断。本评测把结果拆成两层：

@@ -21,8 +21,9 @@ SQLite FTS5 BM25 + Qdrant Embedding
 ```
 
 实现任务 1～7 已完成，首份完整链路质量基线已经生成并达到建议门槛。当前目标是
-修复版本查询召回、证据反向解读和多子问题完整性。当前决定暂不接入 Reranker，也
-不需要 MySQL、Redis、Elasticsearch、LangGraph 或联网检索。
+修复版本查询召回、证据反向解读和多子问题完整性。这三个目标现已完成，并使用同一
+18 题生成了修复后对比基线。当前决定仍不接入 Reranker，也不需要 MySQL、Redis、
+Elasticsearch、LangGraph 或联网检索；下一阶段是公开部署前的工程加固。
 
 ## 2. 已完成并验收
 
@@ -55,7 +56,7 @@ SQLite FTS5 BM25 + Qdrant Embedding
 - React + TypeScript + Vite 问答前端位于 `frontend/`；
 - 安全 Markdown、来源卡片和 Three.js 异步背景已完成；
 - 三个真实问题已完成桌面端与 360px 移动端浏览器联调；
-- 后端自动化测试：54 项通过；
+- 后端自动化测试：60 项通过；
 - 前端自动化测试：8 项通过；
 - TypeScript 类型检查和前端生产构建通过。
 
@@ -207,6 +208,8 @@ Qdrant Top-K、BM25、RRF、`POST /search`、DeepSeek 流式回答、`POST /answ
 - `data/evaluation/baseline-2026-07-29.json`
 - `data/evaluation/answer_quality/REPORT-2026-07-30.md`
 - `data/evaluation/answer_quality/baseline-2026-07-30.json`
+- `data/evaluation/answer_quality/REPORT-2026-07-30-quality-fix.md`
+- `data/evaluation/answer_quality/baseline-2026-07-30-quality-fix.json`
 
 首次基线：
 
@@ -214,26 +217,26 @@ Qdrant Top-K、BM25、RRF、`POST /search`、DeepSeek 流式回答、`POST /answ
 - MRR@10：0.7911；
 - 已知未命中：`java-1-21-content`。
 
-完整回答基线：
+修复后的完整回答基线：
 
-- 平均正确性：1.80/2；
-- 平均完整性：1.80/2；
-- 平均证据忠实度：1.93/2；
-- 期望来源引用率：14/15（93.33%）；
+- 平均正确性：2.00/2；
+- 平均完整性：2.00/2；
+- 平均证据忠实度：2.00/2；
+- 期望来源召回率和引用率：15/15（100%）；
 - 引用编号有效率：100%；
 - 无答案可靠拒答率：3/3（100%）。
 
-不要删除失败问题或修改正确来源来提高表面指标。Java 版 1.21 页面没有进入双路
-Top-20，Reranker 当前无法修复这一召回失败，因此暂不接入。
+不要删除失败问题或修改正确来源来提高表面指标。Java 版 1.21 内容页现在通过版本
+查询规范化与标题优先召回进入 BM25 第 1 名和最终证据第 1 名。当前没有已知的候选
+排序瓶颈，因此仍暂不接入 Reranker。
 
 ## 6. 后续顺序
 
-1. 修复版本号查询的 BM25/标题召回；
-2. 将灾厄巡逻队光照条件写反加入固定回归；
-3. 改进“哪些”类多子问题的回答完整性；
-4. 使用同一 18 题重新生成对比基线；
-5. 公开部署前补充限流、预算、监控、HTTPS Cookie 和滥用防护；
-6. 本地 RAG 稳定后，再评估 Agentic RAG。
+1. 公开部署前补充限流、请求预算、监控、HTTPS Cookie 和滥用防护；
+2. 评估来源按 Wiki 页面合并，减少同页多个 chunk 形成的重复来源卡片；
+3. 保留同一 18 题作为检索、提示词和模型变更的固定回归；
+4. 只有候选已召回但最终排序仍不足时，再评估 Reranker；
+5. 公开服务边界稳定后，再评估 Agentic RAG。
 
 未来受限联网 Agentic RAG 方案见 `docs/ideas/agentic-rag.md`，当前不实施，也不在
 本阶段引入 LangGraph。

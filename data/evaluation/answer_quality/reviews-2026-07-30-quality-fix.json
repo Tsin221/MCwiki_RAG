@@ -1,0 +1,104 @@
+{
+  "redstone-repeater-delay": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确说明1至4红石刻延迟、串联扩展延迟和单向传输，关键事实均有直接证据。"
+  },
+  "creeper-behavior": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确覆盖接近目标、强制引爆和摔落加速计时，并完整列出火药、特定击杀条件下的音乐唱片和闪电苦力怕造成的生物头颅掉落。"
+  },
+  "enchanting-table-bookshelves": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确覆盖15个书架、距离、高度与阻挡条件，关键摆放要求均由引用证据支持。"
+  },
+  "nether-portal-frame": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确给出4×5最小外框、角可省略和框内点火激活。"
+  },
+  "ender-dragon-defeat": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确覆盖12000经验、龙蛋、返回传送门和末地折跃门。"
+  },
+  "brewing-stand-fuel": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确回答烈焰粉以及每份燃料支持20次酿造。"
+  },
+  "iron-golem-spawning": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "覆盖村民机制、村庄、前哨站和玩家建造，并正确说明保护玩家和村民。"
+  },
+  "command-block-obtain": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确说明生存模式不可合成或正常获取，并给出创造模式、选取方块和命令等获取方式。"
+  },
+  "java-1-21-content": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "Java版1.21内容页进入首条证据；回答正确覆盖试炼密室、旋风人、沼骸、不祥事件及主要新增方块，并对证据未展开的物品保持克制。"
+  },
+  "diamond-ore-generation": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确覆盖Y=-64至16、低处更多、铁镐或更好工具、时运和安全挖掘建议。"
+  },
+  "spawner-activation": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确给出16格激活范围和RequiredPlayerRange默认值。"
+  },
+  "ender-pearl-use": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确覆盖传送位置、摔落伤害、末影螨概率及其他主要副作用。"
+  },
+  "shulker-box-storage": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确说明普通破坏保留内容物，并指出物品实体被摧毁时释放内容物的例外。"
+  },
+  "ocean-monument-mobs": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确回答守卫者和三只远古守卫者及其分布。"
+  },
+  "illager-patrol": {
+    "correctness": 2,
+    "completeness": 2,
+    "faithfulness": 2,
+    "notes": "正确覆盖掠夺者、袭击队长、版本差异、生成范围和生物群系；没有再次把Java版方块光照大于8的失败条件误写成生成条件。"
+  },
+  "future-java-1-30-content": {
+    "abstainedReliably": true,
+    "notes": "明确指出证据不包含Java版1.30，没有根据相似版本编造更新内容。"
+  },
+  "terraria-moon-lord": {
+    "abstainedReliably": true,
+    "notes": "识别为Minecraft知识库域外问题并明确拒答，没有提供泰拉瑞亚召唤方法。"
+  },
+  "private-server-online-players": {
+    "abstainedReliably": true,
+    "notes": "说明缺少私人服务器实时数据，只解释可用于查询的相关命令和协议。"
+  }
+}
