@@ -40,35 +40,53 @@ export default function App() {
   return (
     <div className="app-shell" data-phase={answer.phase}>
       <SceneLayer phase={answer.phase} />
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
       <header className="site-header">
         <a className="brand" href="/" aria-label="MC Wiki 助手首页">
-          <span className="brand-cube" aria-hidden="true">
-            M
-          </span>
+          <span className="brand-cube" aria-hidden="true" />
           <span>
-            <strong>MC WIKI</strong>
-            <small>知识助手</small>
+            <strong>MC.WIKI</strong>
+            <small>探索者知识终端</small>
           </span>
         </a>
         <div className="knowledge-badge">
           <span aria-hidden="true" />
-          本地知识库
+          知识库已连接
         </div>
       </header>
 
-      <main className="content">
+      <main className="content" id="main-content">
         {!answer.question ? (
           <section className="welcome" aria-labelledby="welcome-title">
-            <p className="eyebrow">MINECRAFT KNOWLEDGE ENGINE</p>
+            <p className="eyebrow">
+              <span>01</span>
+              MINECRAFT KNOWLEDGE ARCHIVE
+            </p>
             <h1 id="welcome-title">
-              从 Wiki 中找到
-              <br />
-              <span>有据可查</span>的答案
+              方块世界，
+              <br />每一步都有
+              <span>据可循。</span>
             </h1>
             <p className="welcome-copy">
-              基于中文 Minecraft Wiki 的本地知识库。每个回答都附带可追踪来源，
-              资料不足时会如实说明。
+              从中文 Minecraft Wiki 中检索、整理并回答你的问题。
+              每条结论都附带出处，方便继续深入探索。
             </p>
+            <dl className="knowledge-facts" aria-label="知识助手特性">
+              <div>
+                <dt>资料范围</dt>
+                <dd>中文 Wiki</dd>
+              </div>
+              <div>
+                <dt>回答方式</dt>
+                <dd>实时生成</dd>
+              </div>
+              <div>
+                <dt>信息依据</dt>
+                <dd>来源可追溯</dd>
+              </div>
+            </dl>
             <div className="examples" aria-label="示例问题">
               {EXAMPLE_QUESTIONS.map((question) => (
                 <button
@@ -76,14 +94,18 @@ export default function App() {
                   key={question}
                   onClick={() => setInput(question)}
                 >
-                  <span aria-hidden="true">＋</span>
-                  {question}
+                  <span>{question}</span>
+                  <i aria-hidden="true">↗</i>
                 </button>
               ))}
             </div>
           </section>
         ) : (
           <section className="conversation" aria-label="当前问答">
+            <div className="conversation-heading" aria-hidden="true">
+              <span>WIKI / RESPONSE</span>
+              <i />
+            </div>
             <ChatMessage role="user" label="你">
               <p>{answer.question}</p>
             </ChatMessage>
@@ -151,6 +173,13 @@ export default function App() {
           onSubmit={submit}
         />
         <p className="disclaimer">AI 回答可能有误，请以引用的 Wiki 原文为准。</p>
+      </div>
+
+      <div className="scene-note" aria-hidden="true">
+        <span>OVERWORLD</span>
+        <strong>暮色水域</strong>
+        <i />
+        <small>动态场景 · 01</small>
       </div>
     </div>
   )

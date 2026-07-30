@@ -1,0 +1,152 @@
+MCWIKI RAG 项目启动说明
+========================
+
+项目目录：
+E:\Work\MCwiki_RAG
+
+浏览器地址：
+http://localhost:5173
+
+注意：
+必须优先使用 localhost，不要随意改成 127.0.0.1。
+后端使用带 Cookie 的 CORS，浏览器 Origin 必须与根目录 .env 中的
+FRONTEND_ORIGIN 完全一致。
+
+
+一、首次运行
+------------
+
+1. 准备环境文件
+
+打开 PowerShell：
+
+cd E:\Work\MCwiki_RAG
+Copy-Item .env.example .env
+
+然后编辑 .env，填写本地使用的 DEEPSEEK_API_KEY。
+不要把真实密钥放进 frontend 目录，也不要提交到 Git。
+
+2. 安装后端依赖
+
+cd E:\Work\MCwiki_RAG\code
+uv sync
+
+3. 安装前端依赖
+
+cd E:\Work\MCwiki_RAG\frontend
+npm install
+
+
+二、每次启动项目
+----------------
+
+需要分别打开两个 PowerShell 窗口。
+
+窗口 1：启动后端
+
+cd E:\Work\MCwiki_RAG\code
+uv run uvicorn rag_api:app --env-file ..\.env --host 127.0.0.1 --port 8000
+
+窗口 2：启动前端
+
+cd E:\Work\MCwiki_RAG\frontend
+npm run dev
+
+启动成功后，在浏览器打开：
+
+http://localhost:5173
+
+
+三、项目依赖的本地服务
+----------------------
+
+完整的混合检索需要：
+
+1. Ollama
+   默认地址：http://127.0.0.1:11434
+   请确保 Ollama 应用已经启动，并已安装项目配置所需的 embedding 模型。
+
+2. Qdrant
+   默认地址：http://127.0.0.1:6333
+   Dashboard：http://127.0.0.1:6333/dashboard
+   Collection：mcwiki_chunks
+
+如果 Qdrant 或 Ollama 没有运行，网页仍可能打开，但搜索和回答请求会失败。
+
+
+四、验证服务是否启动
+--------------------
+
+前端：
+
+Invoke-WebRequest -UseBasicParsing http://localhost:5173
+
+后端：
+
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/docs
+
+Qdrant：
+
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:6333/healthz
+
+
+五、运行测试
+------------
+
+后端测试：
+
+cd E:\Work\MCwiki_RAG\code
+uv run --with pytest python -m pytest
+
+前端测试、类型检查和构建：
+
+cd E:\Work\MCwiki_RAG\frontend
+npm run test -- --run
+npm run typecheck
+npm run build
+
+
+六、停止项目
+------------
+
+在运行前端或后端的 PowerShell 窗口中按：
+
+Ctrl + C
+
+
+七、常见问题
+------------
+
+1. 页面空白
+
+不要直接双击 frontend\index.html。
+这是 Vite + React 项目，必须通过 npm run dev 启动后访问
+http://localhost:5173。
+
+2. 背景不动
+
+先刷新页面并确认浏览器支持 WebGL。
+如果 Windows 或浏览器开启了“减少动态效果”，页面会按无障碍设置显示静态背景。
+
+3. 提问后提示无法连接
+
+确认后端的 8000 端口正在监听，并检查 .env 中的配置。
+
+4. 检索失败
+
+确认 Ollama 的 11434 端口和 Qdrant 的 6333 端口正在监听。
+
+5. 8000 端口已被其他项目占用
+
+不要直接结束不属于本项目的进程。可以把 MCwiki 后端改到 8001：
+
+cd E:\Work\MCwiki_RAG\code
+uv run uvicorn rag_api:app --env-file ..\.env --host 127.0.0.1 --port 8001
+
+然后在另一个 PowerShell 窗口中，让前端指向 8001：
+
+cd E:\Work\MCwiki_RAG\frontend
+$env:VITE_API_BASE_URL="http://127.0.0.1:8001"
+npm run dev
+
+关闭这个 PowerShell 窗口后，临时环境变量会自动失效。

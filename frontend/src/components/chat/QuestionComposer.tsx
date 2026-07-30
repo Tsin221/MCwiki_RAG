@@ -38,7 +38,7 @@ export function QuestionComposer({
         rows={1}
         maxLength={1000}
         disabled={isBusy}
-        placeholder="输入 Minecraft 问题…"
+        placeholder="问一个关于 Minecraft 的问题…"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
       />
