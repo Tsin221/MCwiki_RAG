@@ -384,17 +384,15 @@ export type AnswerStreamEvent =
   | { type: 'error'; code: string; message: string }
 ```
 
-## 11. 预期命令
-
-以下命令在实施对应项目结构后成立。
+## 11. 实际命令
 
 后端：
 
 ```powershell
 cd E:\Work\MCwiki_RAG\code
 uv sync
-uv run python -m unittest discover -s tests -v
-uv run uvicorn rag_api:app --reload --host 127.0.0.1 --port 8000
+uv run --with pytest python -m pytest
+uv run uvicorn rag_api:app --env-file ..\.env --reload --host 127.0.0.1 --port 8000
 ```
 
 前端：
@@ -438,35 +436,37 @@ npm run build
 
 ## 13. 实施任务
 
-- [ ] 任务 1：实现 DeepSeek 回答服务
+- [x] 任务 1：实现 DeepSeek 回答服务
   - 验收：能够将固定检索证据发送给 `deepseek-v4-pro` 并返回经过校验的回答；
   - 验证：后端单元测试使用 MockTransport 全部通过；
   - 文件：`code/rag_answer.py`、`code/tests/test_answer.py`。
 
-- [ ] 任务 2：实现 `POST /answers`
+- [x] 任务 2：实现 `POST /answers`
   - 验收：接口满足本文 SSE、匿名 Cookie、证据不足和错误契约；
   - 验证：API 契约测试通过，现有 `/search` 行为不变；
   - 文件：`code/rag_api.py`、`code/tests/test_api.py`、`.env.example`。
 
-- [ ] 任务 3：初始化前端
+- [x] 任务 3：初始化前端
   - 验收：React + TypeScript + Vite 可开发启动并生产构建；
   - 验证：`npm run build` 成功；
   - 文件：`frontend/` 基础工程文件。
 
-- [ ] 任务 4：实现问答主界面
+- [x] 任务 4：实现问答主界面
   - 验收：支持输入、发送、流式回答、引用、流中断、错误和重试；
   - 验证：前端组件测试通过；
   - 文件：`frontend/src/`。
 
-- [ ] 任务 5：实现 Three.js 背景
+- [x] 任务 5：实现 Three.js 背景
   - 验收：实现轻量浮空方块岛和状态动效，支持移动端、减少动态效果和静态降级；
   - 验证：场景失败时问答仍可用，真实浏览器性能与无障碍检查通过；
   - 文件：`frontend/src/components/scene/` 和场景相关 hooks。
 
-- [ ] 任务 6：前后端联调
+- [x] 任务 6：前后端联调
   - 验收：真实问题可以完成本地检索、DeepSeek 回答和来源展示；
   - 验证：真实浏览器完成至少 3 个问题的冒烟测试；
   - 文件：后端 CORS 配置、前端 API 配置和必要测试。
+  - 完成记录：2026-07-30 使用钻石矿石、红石中继器和下界要塞三个不同问题验收，
+    `/answers` 均返回 200，桌面端与 360px 移动端可用，控制台 0 error、0 warning。
 
 - [ ] 任务 7：完整链路评测
   - 验收：在现有 15 题基础上记录回答正确性、引用准确性和无答案行为；
@@ -487,10 +487,15 @@ npm run build
 - 前端生产构建和真实浏览器流程都要验收；
 - 实施状态变化时更新本规格和项目状态文档。
 
+### 已决定
+
+- 回答支持受限 Markdown，使用 `react-markdown` + `remark-gfm`；
+- 模型输出按不可信内容处理：丢弃 HTML，仅允许段落、列表、强调、代码和表格等标签；
+- 模型回答中的链接和图片不直接进入 DOM，可点击链接只来自后端校验后的来源卡片；
+- Three.js 与 React Three Fiber 作为异步视觉层，不得阻塞问答主链路。
+
 ### 实施前询问
 
-- 添加 Three.js、`@react-three/fiber`、`@react-three/drei` 以外的新前端运行时依赖；
-- 引入 Markdown 渲染库；
 - 引入 Reranker；
 - 增加会话持久化或数据库；
 - 将匿名访客标识升级为登录、认证或权限系统；
@@ -573,6 +578,5 @@ npm run build
 ## 19. 开放问题
 
 - 是否允许浏览器本地保存最近问题；
-- 回答是否支持 Markdown；
 - 来源卡片默认全部展开还是只显示标题；
 - 进入公开测试前采用何种限流和调用预算。

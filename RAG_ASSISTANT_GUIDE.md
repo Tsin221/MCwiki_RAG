@@ -17,9 +17,9 @@ BM25 + Embedding 双路召回
       ↓
 RRF 排名融合
       ↓
-Reranker 精排
+证据去重与上下文限制
       ↓
-LLM 生成回答
+DeepSeek 流式生成回答
 ```
 
 ### 2.1 当前实现状态
@@ -31,10 +31,13 @@ LLM 生成回答
 - **已完成**：BM25 + Embedding 双路召回与 RRF 融合；
 - **已完成**：FastAPI `POST /search`；
 - **已完成**：15 题检索评测集与首次真实服务基线；
-- **后续阶段**：Reranker、回答生成 LLM、引用展示和前端。
+- **已完成**：DeepSeek `deepseek-v4-pro` 证据约束回答；
+- **已完成**：FastAPI `POST /answers` SSE 与匿名访客 Cookie；
+- **已完成**：React 流式问答界面、引用展示、安全 Markdown 和 Three.js 背景；
+- **后续阶段**：完整回答链路评测，并依据结果决定是否接入 Reranker。
 
-因此，本文中的完整流程是目标架构，不表示所有环节都已经实现。当前已经完成离线
-知识库与索引底座，但尚未形成可对外提供问答的完整 RAG 助手。
+当前已形成可在本地浏览器使用的完整 RAG 问答链路。公开部署前仍需补充限流、
+预算、监控和滥用防护；回答准确性与引用准确性的 15 题基线仍待完成。
 
 项目未来计划扩展为可信度优先、受限联网的 Agentic RAG，但当前不实施。未来方案、
 安全边界和实施前置条件见 `docs/ideas/agentic-rag.md`。
@@ -42,13 +45,14 @@ LLM 生成回答
 ### 2.2 当前工程选型
 
 - 后端：FastAPI；
-- 前端规划：React + TypeScript + Vite，尚未开始实现；
+- 前端：React + TypeScript + Vite + React Three Fiber；
 - Python 版本与依赖：uv，代码统一放在 `code/`；
 - BM25：SQLite FTS5 + trigram，适配中文关键词检索；
 - Embedding：Ollama + `qwen3-embedding:0.6b`，输出 1024 维向量；
 - 向量数据库：Qdrant，集合为 `mcwiki_chunks`，使用 1024 维向量和 Cosine 相似度；
 - 融合方式：RRF；
-- Reranker 和回答生成 LLM：待检索链路验证后确定。
+- 回答生成：DeepSeek `deepseek-v4-pro`，使用 HTTPX 调用 OpenAI 兼容流式接口；
+- Reranker：尚未接入，等待完整回答链路评测后决定。
 
 当前阶段不引入 MySQL、Redis 或 Elasticsearch，以减少首期部署和维护成本。
 
@@ -200,13 +204,13 @@ RRF 主要根据文档块在不同结果列表中的排名计算融合分数，�
 基线的 Hit@10 为 14/15（93.33%），MRR@10 为 0.7911。Java版 1.21 内容问题未在
 Top-10 命中，已保留为后续回归目标。
 
-### 5.2 后续阶段：完整 RAG 问答
+### 5.2 当前阶段：完整 RAG 问答
 
-- 根据检索评测结果选择并接入 Reranker；
-- 接入一个 LLM 生成回答；
-- 在回答中保留可追踪的来源信息；
-- 实现前端与完整问答交互；
-- 评测回答准确性、引用准确性和无答案处理。
+- DeepSeek 流式回答、编号引用和可点击来源已完成；
+- React 前端与完整问答交互已完成；
+- 匿名访客 Cookie、错误状态和移动端降级已完成；
+- 下一步评测回答准确性、引用准确性和无答案处理；
+- 根据完整链路评测结果决定是否接入 Reranker。
 
 首期暂不追求复杂的 Agent、多轮任务编排或大量数据源接入。
 

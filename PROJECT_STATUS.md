@@ -1,136 +1,155 @@
 # RAG 助手当前状态
 
-更新时间：2026-07-29
+更新时间：2026-07-30
 
 ## 阶段结论
 
-数据清洗、向量入库、BM25、查询语义召回、RRF 融合和 FastAPI `/search` 均已完成
-并验收。在线混合检索 MVP 已完成。
+本地知识库、混合检索、DeepSeek 流式回答、FastAPI 接口和 React 问答界面均已实现并完成联调。
+当前系统可以在浏览器中提交 Minecraft 问题，经过 BM25 + Embedding 双路召回与 RRF
+融合后，由 DeepSeek `deepseek-v4-pro` 依据证据生成中文回答，并展示编号引用和可点击来源。
 
-当前可以提供本地知识库的混合检索结果，但还不能提供完整 RAG 问答：Reranker、
-回答生成 LLM 和前端均尚未接入。
-
-下一阶段计划使用 DeepSeek `deepseek-v4-pro` 生成流式回答，并实现带匿名访客
-Cookie 和轻量 Three.js 动态背景的 React 问答界面。规格见
-`docs/specs/qa-web-mvp.md`，视觉方案见 `docs/frontend-threejs/`，当前尚未实施。
+问答 Web MVP 的实现任务 1～6 已完成。尚未完成的是基于现有 15 题评测集的完整回答质量与
+引用准确性基线；是否接入 Reranker 应在该基线完成后决定。
 
 未来计划构建可信度优先、受限联网的 Agentic RAG；预期方案见
 `docs/ideas/agentic-rag.md`。该方案当前暂缓实施，本阶段不引入 LangGraph。
 
-## 已完成：数据与索引底座
+## 已完成能力
 
-- 代码目录：`code/`；
-- Python 版本与依赖管理：uv；
-- Python 版本：3.12；
-- 后端基础依赖：FastAPI、Uvicorn、HTTPX、Qdrant Client；
+### 数据与检索
+
 - 原始资料：`data/original_dataset.json`，共 8,200 条；
-- 清洗分块：已生成 41,368 个文档块；
-- Embedding：Ollama + `qwen3-embedding:0.6b`；
-- 模型目录：`E:\Ollama\model`；
-- 向量维度：1024；
-- 向量数据库：Qdrant 1.18.2；
-- Qdrant 集合：`mcwiki_chunks`，1024 维、Cosine 距离；
-- 向量写入：41,368 个文档块已全部生成向量并写入；
-- 向量写入命令支持断点续跑，重复执行会跳过 Qdrant 中已有的点；
-- Qdrant 地址：`http://127.0.0.1:6333`；
-- Qdrant Dashboard：`http://127.0.0.1:6333/dashboard`；
-- Qdrant 容器：`mcwiki-qdrant`；
-- Qdrant 数据卷：`mcwiki_qdrant_storage`；
-- BM25 数据库：`data/processed/bm25.db`；
-- BM25 索引：SQLite FTS5 + trigram，已索引全部 41,368 个文档块；
-- BM25 构建命令支持重复执行，会更新变化记录并清理源文件中已不存在的记录；
-- BM25 查询模块：`code/rag_retrieval/bm25.py`。
-- 语义查询模块：`code/rag_retrieval/semantic.py`；
-- 查询文本使用 Ollama `qwen3-embedding:0.6b` 生成 1024 维向量；
-- Qdrant Top-K 查询返回 chunk ID、标题、正文、来源和相似度；
-- 语义查询模块会校验 limit、embedding 维度和 Qdrant payload；
-- 真实服务查询已验收，可返回对应的中文 Minecraft Wiki 结果。
-- RRF 融合模块：`code/rag_retrieval/hybrid.py`；
-- FastAPI 应用：`code/rag_api.py`；
+- 清洗分块：41,368 个文档块；
+- BM25：SQLite FTS5 + trigram，索引位于 `data/processed/bm25.db`；
+- Embedding：Ollama + `qwen3-embedding:0.6b`，向量维度 1024；
+- 向量数据库：Qdrant，集合 `mcwiki_chunks`，Cosine 距离；
+- 混合检索：BM25 与 Embedding 双路召回，使用 RRF 融合；
 - 检索接口：`POST /search`；
-- 评测集：`data/evaluation/retrieval_questions.json`，共 15 题；
-- 首次基线：`data/evaluation/baseline-2026-07-29.json`；
-- Hit@10：14/15（93.33%）；
-- MRR@10：0.7911；
-- 已知未命中：Java版 1.21 内容问题。
+- 15 题检索基线：Hit@10 为 14/15（93.33%），MRR@10 为 0.7911。
 
-## 向量库验收
+### 回答服务与 API
 
-- `points_count`：41,368，与文档块数量一致；
-- Collection 状态：`green`；
-- Optimizer 状态：`ok`；
-- 写入队列：空；
-- 断点续跑复检：41,368 条已存在，剩余 0 条；
-- 自动化测试：35 项通过。
+- DeepSeek 客户端与证据上下文构建：`code/rag_answer.py`；
+- 模型：`deepseek-v4-pro`，仅由后端调用；
+- 流式问答接口：`POST /answers`；
+- SSE 事件：`meta`、`sources`、`delta`、`done`，流中错误使用 `error`；
+- 统一处理配置错误、检索错误、模型错误和超时；
+- 匿名访客 Cookie：`HttpOnly`、`SameSite=Lax`、180 天有效期；
+- CORS 使用显式前端 Origin 并允许 Cookie，不使用通配符；
+- API Key 只从根目录 `.env` 读取，不进入前端、日志或 Git。
 
-Dashboard 中的 `indexed_vectors_count` 可能小于 `points_count`。低于
-`indexing_threshold` 的尾部小 segment 会使用全量扫描，这不表示向量缺失；
-是否完整应以 `points_count` 和断点续跑复检结果为准。
+### 前端
 
-## BM25 索引验收
+- React 19 + TypeScript + Vite；
+- 使用 `fetch` + `ReadableStream` 解析 POST SSE；
+- 支持问题提交、增量回答、来源展示、错误状态和重试；
+- 回答使用受限 Markdown 渲染：丢弃 HTML，只允许文本、列表、强调、代码和表格等安全标签；
+- Three.js / React Three Fiber 动态背景异步加载；
+- 支持移动端质量降级、`prefers-reduced-motion`、页面隐藏暂停和静态背景回退；
+- 匿名 Cookie 请求使用 `credentials: 'include'`。
 
-- `chunks` 内容表记录数：41,368；
-- `chunks_fts` FTS5 索引记录数：41,368；
-- 重复 chunk ID：0；
-- 有效 metadata JSON：41,368；
-- Tokenizer：`trigram`；
-- SQLite `integrity_check`：`ok`；
-- FTS5 外部内容一致性检查：通过；
-- 重复执行全量构建后记录数仍为 41,368；
-- 中文关键词、Minecraft 专有名词和版本号查询均能返回结果；
-- 空白查询和无结果查询均返回空列表。
+## 验收结果
 
-## 混合检索 MVP 完成情况
+- Qdrant `points_count`：41,368，Collection 状态 `green`；
+- 后端自动化测试：48 项通过；
+- 前端自动化测试：8 项通过；
+- TypeScript 类型检查：通过；
+- 前端生产构建：通过；
+- 真实 `/answers` SSE：HTTP 200，事件顺序与增量输出正确；
+- 真实浏览器问题：
+  - “钻石矿石在哪里生成？”
+  - “红石中继器有什么作用？”
+  - “如何找到下界要塞？”
+- 三个问题均完成本地检索、DeepSeek 回答、Markdown 展示和 8 条来源展示；
+- 桌面端与 360px 移动端视觉检查通过；
+- 浏览器控制台：0 error、0 warning；
+- 浏览器网络请求：`POST http://localhost:8000/answers` 均为 200。
 
-1. 查询向量化与 Qdrant Top-K：已完成；
-2. BM25 与 Embedding 双路召回：已完成；
-3. RRF 排名融合：已完成；
-4. `/search` 检索接口：已完成；
-5. 10～20 个评测问题及正确来源：已完成；
-6. 首次真实服务基线：已完成。
+当前保留两项非阻断提示：
 
-该阶段已完成。
+- FastAPI TestClient 依赖链提示未来迁移到 `httpx2`；
+- Three.js 异步场景包超过 Vite 默认 500 kB 提示，但已从首屏主包拆分。
 
-## 后续阶段
+## 本地启动
 
-1. 使用 `deepseek-v4-pro` 生成带可追踪来源的回答；
-2. 提供基于 SSE 的流式 `POST /answers`；
-3. 使用匿名 Cookie 区分浏览器访客；
-4. 实现带轻量 Three.js 动态背景的 React 流式问答界面；
-5. 补充完整链路评测与无答案处理；
-6. 根据完整链路评测决定是否接入 Reranker。
+前置条件：
 
-## 暂时不需要
+- Ollama 已运行并安装 `qwen3-embedding:0.6b`；
+- Qdrant 已运行，且 `mcwiki_chunks` 已完成入库；
+- 根目录 `.env` 已填写 `DEEPSEEK_API_KEY`。
 
-- MySQL；
-- Redis；
-- Elasticsearch。
+首次配置：
 
-第一版先完成：
+```powershell
+cd E:\Work\MCwiki_RAG
+Copy-Item .env.example .env
+# 编辑 .env，只在本地填写 DEEPSEEK_API_KEY
+```
+
+启动后端：
+
+```powershell
+cd E:\Work\MCwiki_RAG\code
+uv sync
+uv run uvicorn rag_api:app --env-file ..\.env --host 127.0.0.1 --port 8000
+```
+
+启动前端：
+
+```powershell
+cd E:\Work\MCwiki_RAG\frontend
+npm install
+npm run dev
+```
+
+浏览器打开 `http://localhost:5173`。不要改用 `http://127.0.0.1:5173`，除非同时把
+`.env` 中的 `FRONTEND_ORIGIN` 改为完全一致的地址；带 Cookie 的 CORS 必须精确匹配 Origin。
+
+## 验证命令
+
+后端：
+
+```powershell
+cd E:\Work\MCwiki_RAG\code
+uv run --with pytest python -m pytest
+```
+
+前端：
+
+```powershell
+cd E:\Work\MCwiki_RAG\frontend
+npm run test -- --run
+npm run typecheck
+npm run build
+```
+
+## 当前链路
 
 ```text
 SQLite BM25 + Qdrant Embedding
               ↓
           RRF 融合
               ↓
-        FastAPI /search
+       证据去重与上下文限制
+              ↓
+     DeepSeek 流式证据约束回答
+              ↓
+       FastAPI POST /answers
+              ↓
+ React + 安全 Markdown + 来源卡片
 ```
 
-检索链路已完成。下一步按 `docs/specs/qa-web-mvp.md` 增加 DeepSeek 回答和前端。
+## 后续工作
 
-## 常用命令
+1. 用现有 15 题生成首份回答准确性、引用准确性和无答案行为基线；
+2. 根据完整链路评测决定是否接入 Reranker；
+3. 公开部署前增加限流、预算、监控、HTTPS Cookie 和滥用防护；
+4. 评估来源按页面进一步合并，减少同一 Wiki 页面多 chunk 带来的重复卡片。
 
-```powershell
-cd E:\Work\MCwiki_RAG\code
-uv sync
-uv run python -m unittest discover -s tests -v
-uv run python -m rag_ingest.bm25_index
-uv run python -m rag_ingest.vector_ingest
-uv run uvicorn rag_api:app --host 127.0.0.1 --port 8000
-```
+## 当前不做
 
-`rag_ingest.bm25_index` 默认读取 `data/processed/chunks.jsonl`，同步构建
-`data/processed/bm25.db`。重复执行不会产生重复记录。
-
-`rag_ingest.vector_ingest` 使用稳定的 Qdrant 点 ID 和 upsert 写入；中断后可直接
-重复运行，命令会读取已有点 ID，只为缺失文档块生成向量。
+- MySQL、Redis、Elasticsearch；
+- 登录、注册和服务端会话历史；
+- 任意互联网搜索；
+- LangGraph、Agentic 检索循环和多 Agent；
+- 公开生产环境部署与完整计费系统。
