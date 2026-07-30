@@ -1,21 +1,28 @@
 # MCwiki RAG 下一智能体交接说明
 
-更新时间：2026-07-29
+更新时间：2026-07-30
 
 ## 1. 项目目标
 
-构建一个 Minecraft Wiki RAG 助手。当前首期目标是先跑通可评测的混合检索链路：
+构建一个 Minecraft Wiki RAG 助手。当前本地问答 Web MVP 已经形成完整链路：
 
 ```text
 SQLite FTS5 BM25 + Qdrant Embedding
                   ↓
               RRF 融合
                   ↓
-            FastAPI /search
+         证据去重与上下文限制
+                  ↓
+       DeepSeek 流式证据约束回答
+                  ↓
+          FastAPI /answers SSE
+                  ↓
+       React 问答、引用与来源展示
 ```
 
-检索链路稳定后，再接入 Reranker、回答生成 LLM 和前端。当前不需要 MySQL、
-Redis 或 Elasticsearch。
+实现任务 1～7 已完成，首份完整链路质量基线已经生成并达到建议门槛。当前目标是
+修复版本查询召回、证据反向解读和多子问题完整性。当前决定暂不接入 Reranker，也
+不需要 MySQL、Redis、Elasticsearch、LangGraph 或联网检索。
 
 ## 2. 已完成并验收
 
@@ -41,7 +48,16 @@ Redis 或 Elasticsearch。
 - FastAPI 应用：`code/rag_api.py`；
 - `POST /search` 已通过真实服务验收；
 - 15 题评测集和首次基线已生成；
-- 自动化测试：35 项通过。
+- DeepSeek 回答客户端：`code/rag_answer.py`；
+- 流式回答接口：`POST /answers`；
+- SSE 事件：`meta`、`sources`、`delta`、`done`，流中错误使用 `error`；
+- 匿名访客 Cookie、显式 CORS Origin 和统一错误处理已完成；
+- React + TypeScript + Vite 问答前端位于 `frontend/`；
+- 安全 Markdown、来源卡片和 Three.js 异步背景已完成；
+- 三个真实问题已完成桌面端与 360px 移动端浏览器联调；
+- 后端自动化测试：54 项通过；
+- 前端自动化测试：8 项通过；
+- TypeScript 类型检查和前端生产构建通过。
 
 向量写入已完成。再次运行写入命令时，程序会确认 41,368 条均已存在、剩余 0 条。
 
@@ -126,6 +142,41 @@ uv run python -m rag_ingest.bm25_index
 
 相关测试：`code/tests/test_semantic.py`
 
+### 3.5 混合检索与回答生成
+
+实现文件：
+
+- `code/rag_retrieval/hybrid.py`
+- `code/rag_answer.py`
+
+关键行为：
+
+- BM25 与语义结果按 chunk ID 去重并使用 RRF 融合；
+- 回答上下文限制来源数量和总字符数；
+- DeepSeek `deepseek-v4-pro` 只由后端调用；
+- 模型被要求只依据编号证据回答，证据不足时明确说明；
+- 流式响应按 OpenAI 兼容 SSE 格式解析，并校验异常响应。
+
+相关测试：`code/tests/test_hybrid.py`、`code/tests/test_answer.py`
+
+### 3.6 API 与前端
+
+实现文件：
+
+- `code/rag_api.py`
+- `frontend/src/`
+
+关键行为：
+
+- `POST /search` 保持可用；
+- `POST /answers` 返回 `meta`、`sources`、`delta`、`done` 或 `error` 事件；
+- 匿名访客 Cookie 使用 `HttpOnly`、`SameSite=Lax` 和 180 天有效期；
+- 前端使用 `fetch` + `ReadableStream` 解析 POST SSE；
+- 模型 Markdown 作为不可信内容处理，不渲染 HTML、模型链接或模型图片；
+- Three.js 场景异步加载，失败时回退到静态背景，不阻塞问答主链路。
+
+相关测试：`code/tests/test_api.py`、`frontend/src/*.test.ts*`
+
 ## 4. 重要说明与边界
 
 Qdrant Dashboard 中的 `indexed_vectors_count` 可能小于 `points_count`。低于
@@ -137,18 +188,25 @@ Qdrant Dashboard 中的 `indexed_vectors_count` 可能小于 `points_count`。�
 
 当前工作区已经是 Git 仓库。修改前应检查工作区状态，并保留用户已有改动。
 
-FastAPI、Uvicorn 等依赖已经安装，但当前还没有 FastAPI 应用或 `/search` 接口。
-React 前端、Reranker 和回答生成 LLM 也尚未实现。
+FastAPI `/search`、`/answers`、DeepSeek 回答服务和 React 前端均已实现。Reranker
+仍未接入，这是有意保留的评测后决策点，不是遗漏实现。
+
+根目录 `.env` 含本地密钥配置并被 Git 忽略。不要把密钥内容写入文档、日志、前端
+代码或版本控制。带 Cookie 的 CORS 要求浏览器 Origin 与 `FRONTEND_ORIGIN` 完全
+一致；默认使用 `http://localhost:5173`。
 
 ## 5. 当前阶段结论
 
-本地混合检索 MVP 已完成，包括查询 embedding、Qdrant Top-K、BM25、RRF、
-`POST /search` 和首次评测基线。
+本地混合检索 MVP 和问答 Web MVP 的实现任务 1～7 均已完成，包括查询 embedding、
+Qdrant Top-K、BM25、RRF、`POST /search`、DeepSeek 流式回答、`POST /answers`
+、React/Three.js 前端和首份完整链路质量评测。
 
 评测文件：
 
 - `data/evaluation/retrieval_questions.json`
 - `data/evaluation/baseline-2026-07-29.json`
+- `data/evaluation/answer_quality/REPORT-2026-07-30.md`
+- `data/evaluation/answer_quality/baseline-2026-07-30.json`
 
 首次基线：
 
@@ -156,16 +214,25 @@ React 前端、Reranker 和回答生成 LLM 也尚未实现。
 - MRR@10：0.7911；
 - 已知未命中：`java-1-21-content`。
 
-不要删除失败问题或修改正确来源来提高表面指标。下一步应先分析版本问题未命中的
-原因，或者在确定云端模型供应商后进入 Reranker 与回答生成阶段。
+完整回答基线：
+
+- 平均正确性：1.80/2；
+- 平均完整性：1.80/2；
+- 平均证据忠实度：1.93/2；
+- 期望来源引用率：14/15（93.33%）；
+- 引用编号有效率：100%；
+- 无答案可靠拒答率：3/3（100%）。
+
+不要删除失败问题或修改正确来源来提高表面指标。Java 版 1.21 页面没有进入双路
+Top-20，Reranker 当前无法修复这一召回失败，因此暂不接入。
 
 ## 6. 后续顺序
 
-1. 分析并优化 Java版 1.21 问题的检索未命中；
-2. 根据评测结果决定是否接入 Reranker；
-3. 选择云端回答生成 LLM；
-4. 生成带可追踪来源的回答；
-5. 实现前端；
+1. 修复版本号查询的 BM25/标题召回；
+2. 将灾厄巡逻队光照条件写反加入固定回归；
+3. 改进“哪些”类多子问题的回答完整性；
+4. 使用同一 18 题重新生成对比基线；
+5. 公开部署前补充限流、预算、监控、HTTPS Cookie 和滥用防护；
 6. 本地 RAG 稳定后，再评估 Agentic RAG。
 
 未来受限联网 Agentic RAG 方案见 `docs/ideas/agentic-rag.md`，当前不实施，也不在
@@ -176,11 +243,19 @@ React 前端、Reranker 和回答生成 LLM 也尚未实现。
 ```powershell
 cd E:\Work\MCwiki_RAG\code
 uv sync
-uv run python -m unittest discover -s tests -v
+uv run --with pytest python -m pytest
 uv run python -m rag_ingest
 uv run python -m rag_ingest.bm25_index
 uv run python -m rag_ingest.vector_ingest
-uv run uvicorn rag_api:app --host 127.0.0.1 --port 8000
+uv run uvicorn rag_api:app --env-file ..\.env --host 127.0.0.1 --port 8000
+```
+
+```powershell
+cd E:\Work\MCwiki_RAG\frontend
+npm run test -- --run
+npm run typecheck
+npm run build
+npm run dev
 ```
 
 相关状态与设计文档：

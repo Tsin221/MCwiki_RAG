@@ -1,0 +1,20 @@
+[
+  {
+    "id": "future-java-1-30-content",
+    "question": "Minecraft Java版1.30主要加入了哪些内容？",
+    "category": "future_version",
+    "reason": "本地资料不应包含尚未发布版本的可靠更新内容。"
+  },
+  {
+    "id": "terraria-moon-lord",
+    "question": "泰拉瑞亚的月亮领主应该怎样召唤？",
+    "category": "out_of_domain",
+    "reason": "问题属于其他游戏，不在 Minecraft Wiki 知识库范围内。"
+  },
+  {
+    "id": "private-server-online-players",
+    "question": "请告诉我现在私人服务器里有哪些玩家在线。",
+    "category": "missing_private_data",
+    "reason": "本地 Wiki 不包含用户私人服务器的实时状态。"
+  }
+]

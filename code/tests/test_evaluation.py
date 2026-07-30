@@ -1,0 +1,200 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from rag_evaluation import (
+    analyze_answer,
+    load_evaluation_cases,
+    normalize_source_url,
+    run_answer_case,
+    summarize_results,
+    validate_resume_output,
+)
+from rag_retrieval.hybrid import HybridResult
+
+
+class FakeRetriever:
+    def search(self, query, *, bm25_limit, semantic_limit, limit):
+        return [
+            HybridResult(
+                chunk_id="chunk-redstone",
+                title="红石中继器",
+                text="红石中继器可以延迟信号。",
+                source="https://zh.minecraft.wiki/w/红石中继器",
+                score=0.032,
+                bm25_rank=1,
+                semantic_rank=1,
+            )
+        ]
+
+
+class FakeAnswerClient:
+    async def stream_answer(self, question, evidence):
+        yield "红石中继器可以延迟信号。"
+        yield "[1]"
+
+
+class SourceNormalizationTests(unittest.TestCase):
+    def test_normalizes_encoded_and_unicode_wiki_urls(self):
+        encoded = (
+            "https://zh.minecraft.wiki/w/"
+            "%E7%BA%A2%E7%9F%B3%E4%B8%AD%E7%BB%A7%E5%99%A8/"
+        )
+
+        self.assertEqual(
+            normalize_source_url(encoded),
+            normalize_source_url("https://zh.minecraft.wiki/w/红石中继器"),
+        )
+
+
+class LoadEvaluationCasesTests(unittest.TestCase):
+    def test_labels_answerable_and_unanswerable_case_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            answerable_path = root / "answerable.json"
+            unanswerable_path = root / "unanswerable.json"
+            answerable_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "id": "known",
+                            "question": "已知问题",
+                            "category": "known",
+                            "expected_sources": ["https://example.test/known"],
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            unanswerable_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "id": "unknown",
+                            "question": "未知问题",
+                            "category": "unknown",
+                            "reason": "知识库不包含。",
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            cases = load_evaluation_cases(answerable_path, unanswerable_path)
+
+        self.assertEqual([case["kind"] for case in cases], ["answerable", "unanswerable"])
+        self.assertEqual(cases[1]["expected_sources"], [])
+
+    def test_rejects_resuming_with_different_configuration(self):
+        with self.assertRaisesRegex(ValueError, "configuration"):
+            validate_resume_output(
+                {
+                    "configuration": {"model": "old-model"},
+                    "cases": [],
+                },
+                expected_configuration={"model": "current-model"},
+                expected_case_ids=["known"],
+            )
+
+
+class AnswerAnalysisTests(unittest.TestCase):
+    def test_reports_expected_source_and_invalid_citation_ids(self):
+        result = analyze_answer(
+            answer="中继器可以延迟信号。[1] 另见不存在的证据。[9]",
+            evidence=[
+                {
+                    "id": 1,
+                    "url": "https://zh.minecraft.wiki/w/红石中继器",
+                },
+                {
+                    "id": 2,
+                    "url": "https://zh.minecraft.wiki/w/红石比较器",
+                },
+            ],
+            expected_sources=[
+                "https://zh.minecraft.wiki/w/"
+                "%E7%BA%A2%E7%9F%B3%E4%B8%AD%E7%BB%A7%E5%99%A8"
+            ],
+        )
+
+        self.assertTrue(result["expectedSourceRetrieved"])
+        self.assertTrue(result["expectedSourceCited"])
+        self.assertEqual(result["citationIds"], [1, 9])
+        self.assertEqual(result["invalidCitationIds"], [9])
+        self.assertEqual(result["citationValidityRate"], 0.5)
+
+
+class RunAnswerCaseTests(unittest.IsolatedAsyncioTestCase):
+    async def test_runs_retrieval_generation_and_objective_checks(self):
+        case = {
+            "id": "redstone",
+            "question": "中继器有什么作用？",
+            "category": "gameplay",
+            "kind": "answerable",
+            "expected_sources": ["https://zh.minecraft.wiki/w/红石中继器"],
+        }
+
+        result = await run_answer_case(
+            case,
+            retriever=FakeRetriever(),
+            answer_client=FakeAnswerClient(),
+        )
+
+        self.assertEqual(result["answer"]["text"], "红石中继器可以延迟信号。[1]")
+        self.assertEqual(result["answer"]["status"], "answered")
+        self.assertTrue(result["objective"]["expectedSourceCited"])
+        self.assertEqual(result["evidence"][0]["chunkId"], "chunk-redstone")
+
+
+class SummaryTests(unittest.TestCase):
+    def test_combines_objective_metrics_with_manual_reviews(self):
+        raw_run = {
+            "cases": [
+                {
+                    "id": "answerable",
+                    "kind": "answerable",
+                    "objective": {
+                        "expectedSourceRetrieved": True,
+                        "expectedSourceCited": True,
+                        "citationCount": 2,
+                        "validCitationCount": 1,
+                        "invalidCitationIds": [9],
+                    },
+                },
+                {
+                    "id": "unanswerable",
+                    "kind": "unanswerable",
+                    "objective": {
+                        "citationCount": 0,
+                        "validCitationCount": 0,
+                        "invalidCitationIds": [],
+                    },
+                },
+            ]
+        }
+        reviews = {
+            "answerable": {
+                "correctness": 2,
+                "completeness": 2,
+                "faithfulness": 2,
+                "notes": "回答正确，但包含一个无效引用。",
+            },
+            "unanswerable": {
+                "abstainedReliably": True,
+                "notes": "明确说明资料不足。",
+            },
+        }
+
+        summary = summarize_results(raw_run, reviews)
+
+        self.assertEqual(summary["metrics"]["answerableCount"], 1)
+        self.assertEqual(summary["metrics"]["correctnessAverage"], 2.0)
+        self.assertEqual(summary["metrics"]["expectedSourceCitationRate"], 1.0)
+        self.assertEqual(summary["metrics"]["citationValidityRate"], 0.5)
+        self.assertEqual(summary["metrics"]["abstentionRate"], 1.0)
+        self.assertFalse(summary["meetsSuggestedThresholds"])
+
+
+if __name__ == "__main__":
+    unittest.main()
