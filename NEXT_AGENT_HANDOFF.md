@@ -23,7 +23,9 @@ SQLite FTS5 BM25 + Qdrant Embedding
 实现任务 1～7 已完成，首份完整链路质量基线已经生成并达到建议门槛。当前目标是
 修复版本查询召回、证据反向解读和多子问题完整性。这三个目标现已完成，并使用同一
 18 题生成了修复后对比基线。当前决定仍不接入 Reranker，也不需要 MySQL、Redis、
-Elasticsearch、LangGraph 或联网检索；下一阶段是公开部署前的工程加固。
+Elasticsearch、LangGraph 或联网检索。下一阶段继续深化基础 RAG 工程；限流、请求
+预算、监控、HTTPS Cookie、滥用防护和公开部署均不属于当前任务。现有同一 18 题已
+固定为所有后续 RAG 变更的回归门槛。
 
 ## 2. 已完成并验收
 
@@ -56,7 +58,7 @@ Elasticsearch、LangGraph 或联网检索；下一阶段是公开部署前的工
 - React + TypeScript + Vite 问答前端位于 `frontend/`；
 - 安全 Markdown、来源卡片和 Three.js 异步背景已完成；
 - 三个真实问题已完成桌面端与 360px 移动端浏览器联调；
-- 后端自动化测试：60 项通过；
+- 后端自动化测试：61 项通过；
 - 前端自动化测试：8 项通过；
 - TypeScript 类型检查和前端生产构建通过。
 
@@ -204,6 +206,7 @@ Qdrant Top-K、BM25、RRF、`POST /search`、DeepSeek 流式回答、`POST /answ
 
 评测文件：
 
+- `data/evaluation/regression_suite.json`
 - `data/evaluation/retrieval_questions.json`
 - `data/evaluation/baseline-2026-07-29.json`
 - `data/evaluation/answer_quality/REPORT-2026-07-30.md`
@@ -232,14 +235,17 @@ Qdrant Top-K、BM25、RRF、`POST /search`、DeepSeek 流式回答、`POST /answ
 
 ## 6. 后续顺序
 
-1. 公开部署前补充限流、请求预算、监控、HTTPS Cookie 和滥用防护；
-2. 评估来源按 Wiki 页面合并，减少同页多个 chunk 形成的重复来源卡片；
-3. 保留同一 18 题作为检索、提示词和模型变更的固定回归；
+1. 保留同一 18 题作为分块、Embedding、检索、融合、上下文、提示词和回答模型变更的
+   固定回归，不删除失败问题，不覆盖历史基线；
+2. 每次运行记录配置、数据集和系统提示词指纹，拒绝混合不同配置或不完整的评测；
+3. 根据固定回归暴露的问题，再选择查询处理、分块与上下文、检索与融合等基础 RAG
+   工程改进；
 4. 只有候选已召回但最终排序仍不足时，再评估 Reranker；
-5. 公开服务边界稳定后，再评估 Agentic RAG。
+5. 基础 RAG 稳定后，再进入证据驱动的 Agentic RAG。
 
-未来受限联网 Agentic RAG 方案见 `docs/ideas/agentic-rag.md`，当前不实施，也不在
-本阶段引入 LangGraph。
+未来证据驱动的 Agentic RAG 方案见 `docs/ideas/agentic-rag.md`，当前不实施，也不在
+本阶段引入 LangGraph。限流、请求预算、监控、HTTPS Cookie 和滥用防护留到项目明确
+需要公开部署时再评估。
 
 ## 7. 常用命令
 

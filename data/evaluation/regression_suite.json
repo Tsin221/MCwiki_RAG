@@ -1,0 +1,29 @@
+{
+  "suiteId": "mcwiki-rag-regression-v1",
+  "version": 1,
+  "answerableCasesPath": "data/evaluation/retrieval_questions.json",
+  "unanswerableCasesPath": "data/evaluation/answer_quality/unanswerable_questions.json",
+  "referenceBaseline": "data/evaluation/answer_quality/baseline-2026-07-30-quality-fix.json",
+  "answerableCaseIds": [
+    "redstone-repeater-delay",
+    "creeper-behavior",
+    "enchanting-table-bookshelves",
+    "nether-portal-frame",
+    "ender-dragon-defeat",
+    "brewing-stand-fuel",
+    "iron-golem-spawning",
+    "command-block-obtain",
+    "java-1-21-content",
+    "diamond-ore-generation",
+    "spawner-activation",
+    "ender-pearl-use",
+    "shulker-box-storage",
+    "ocean-monument-mobs",
+    "illager-patrol"
+  ],
+  "unanswerableCaseIds": [
+    "future-java-1-30-content",
+    "terraria-moon-lord",
+    "private-server-online-players"
+  ]
+}

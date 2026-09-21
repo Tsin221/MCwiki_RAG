@@ -141,6 +141,35 @@ class LoadEvaluationCasesTests(unittest.TestCase):
         self.assertNotIn("test-secret", json.dumps(original))
 
 
+class FixedRegressionSuiteTests(unittest.TestCase):
+    def test_default_regression_suite_matches_versioned_manifest(self):
+        project_root = Path(__file__).resolve().parents[2]
+        evaluation_root = project_root / "data" / "evaluation"
+        manifest = json.loads(
+            (evaluation_root / "regression_suite.json").read_text(encoding="utf-8")
+        )
+
+        cases = load_evaluation_cases(
+            evaluation_root / "retrieval_questions.json",
+            evaluation_root / "answer_quality" / "unanswerable_questions.json",
+        )
+        answerable_ids = [
+            case["id"] for case in cases if case["kind"] == "answerable"
+        ]
+        unanswerable_ids = [
+            case["id"] for case in cases if case["kind"] == "unanswerable"
+        ]
+
+        self.assertEqual(manifest["suiteId"], "mcwiki-rag-regression-v1")
+        self.assertEqual(answerable_ids, manifest["answerableCaseIds"])
+        self.assertEqual(unanswerable_ids, manifest["unanswerableCaseIds"])
+        self.assertEqual(len(cases), 18)
+        self.assertEqual(len({case["id"] for case in cases}), 18)
+        self.assertTrue(
+            (project_root / manifest["referenceBaseline"]).is_file()
+        )
+
+
 class AnswerAnalysisTests(unittest.TestCase):
     def test_reports_expected_source_and_invalid_citation_ids(self):
         result = analyze_answer(
