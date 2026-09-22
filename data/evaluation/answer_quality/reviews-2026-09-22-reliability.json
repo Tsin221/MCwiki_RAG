@@ -1,0 +1,20 @@
+{
+  "redstone-repeater-delay": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "回答覆盖1至4红石刻延迟、串联及单向传输，并给出相应引用。"},
+  "creeper-behavior": {"correctness": 2, "completeness": 1, "faithfulness": 2, "notes": "爆炸触发及火药、音乐唱片、生物头颅均有涉及；音乐唱片的具体击杀条件说明不充分。"},
+  "enchanting-table-bookshelves": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明15个书架、水平距离、高度及无遮挡条件。"},
+  "nether-portal-frame": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明黑曜石框架、角可省略、4×5最小尺寸及点火激活。"},
+  "ender-dragon-defeat": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖首次击杀经验、龙蛋、末地折跃门和返回传送门。"},
+  "brewing-stand-fuel": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "明确烈焰粉及20次酿造，并有直接引用。"},
+  "iron-golem-spawning": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "区分村庄、村民、建造等生成方式，并说明通常保护玩家和村民。"},
+  "command-block-obtain": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "解释生存模式无法合成或正常获取，并列出创造模式及命令途径。"},
+  "java-1-21-content": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "主要更新内容由Java版1.21正文证据[1]支持；固定题集期望的1.21消歧义页[4]未被引用，严格引用指标因此失败。"},
+  "diamond-ore-generation": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "回答生成高度、铁镐要求和推荐挖掘高度，引用与相应证据对应。"},
+  "spawner-activation": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "明确玩家在16格范围内激活刷怪笼。"},
+  "ender-pearl-use": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖命中后传送、摔落伤害及末影螨等副作用。"},
+  "shulker-box-storage": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明破坏方块后内容物保留，并指出物品实体被摧毁时的例外。"},
+  "ocean-monument-mobs": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "指出守卫者和远古守卫者，并排除非敌对的鱿鱼。"},
+  "illager-patrol": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明掠夺者组成、袭击队长以及Java版和基岩版的生成位置与条件。"},
+  "future-java-1-30-content": {"abstainedReliably": true, "notes": "明确资料不足，未编造未来版本更新内容。"},
+  "terraria-moon-lord": {"abstainedReliably": true, "notes": "明确问题超出Minecraft知识库范围。"},
+  "private-server-online-players": {"abstainedReliably": true, "notes": "没有将命令示例中的玩家姓名误认作私人服务器实时状态。"}
+}

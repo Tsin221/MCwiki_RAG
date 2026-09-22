@@ -10,6 +10,4 @@ export type ScenePhase =
 export interface SceneQuality {
   level: 'high' | 'low'
   dpr: [number, number]
-  blockCount: number
-  particleCount: number
 }

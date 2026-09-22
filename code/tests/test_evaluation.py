@@ -2,6 +2,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from rag_answer import DeepSeekSettings
 from rag_evaluation import (
@@ -10,7 +12,9 @@ from rag_evaluation import (
     load_evaluation_cases,
     normalize_source_url,
     run_answer_case,
+    run_evaluation,
     summarize_results,
+    validate_complete_output,
     validate_resume_output,
 )
 from rag_retrieval.hybrid import HybridResult
@@ -217,6 +221,53 @@ class RunAnswerCaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["answer"]["status"], "answered")
         self.assertTrue(result["objective"]["expectedSourceCited"])
         self.assertEqual(result["evidence"][0]["chunkId"], "chunk-redstone")
+
+
+class EvaluationRunFailureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_one_failed_case_does_not_stop_batch_and_can_be_retried(self):
+        cases = [
+            {"id": "first", "question": "first", "kind": "answerable", "category": "test"},
+            {"id": "second", "question": "second", "kind": "answerable", "category": "test"},
+        ]
+        answer_settings = DeepSeekSettings(api_key="test-key")
+        resources = (
+            object(),
+            SimpleNamespace(close=lambda: None),
+            SimpleNamespace(close=lambda: None),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = Path(directory) / "run.json"
+            with patch("rag_evaluation.load_evaluation_cases", return_value=cases), patch(
+                "rag_evaluation.DeepSeekSettings.from_env", return_value=answer_settings
+            ), patch("rag_evaluation.build_default_retriever", return_value=resources), patch(
+                "rag_evaluation.run_answer_case",
+                new=AsyncMock(side_effect=[RuntimeError("temporary"), {"id": "second", "timingMs": {"total": 1}}]),
+            ):
+                await run_evaluation(
+                    answerable_path=Path("unused"),
+                    unanswerable_path=Path("unused"),
+                    output_path=output_path,
+                )
+            first_run = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual([case["id"] for case in first_run["cases"]], ["first", "second"])
+            self.assertEqual(first_run["cases"][0]["error"], "RuntimeError")
+            with self.assertRaisesRegex(ValueError, "failed cases"):
+                validate_complete_output(first_run, expected_case_ids=["first", "second"])
+
+            with patch("rag_evaluation.load_evaluation_cases", return_value=cases), patch(
+                "rag_evaluation.DeepSeekSettings.from_env", return_value=answer_settings
+            ), patch("rag_evaluation.build_default_retriever", return_value=resources), patch(
+                "rag_evaluation.run_answer_case", new=AsyncMock(return_value={"id": "first", "timingMs": {"total": 1}})
+            ) as retry:
+                await run_evaluation(
+                    answerable_path=Path("unused"),
+                    unanswerable_path=Path("unused"),
+                    output_path=output_path,
+                )
+            self.assertEqual(retry.call_count, 1)
+            second_run = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual({case["id"] for case in second_run["cases"]}, {"first", "second"})
+            self.assertEqual(len(second_run["cases"]), 2)
 
 
 class SummaryTests(unittest.TestCase):

@@ -4,7 +4,15 @@
 `../retrieval_questions.json` 中的 15 个可回答问题，并补充
 `unanswerable_questions.json` 中的资料不足或域外问题。
 
-当前最新结果为定向质量修复基线：
+当前最新结果为 2026 年 9 月 22 日可靠性回归：
+
+- 报告：`REPORT-2026-09-22-reliability.md`；
+- 原始结果：`raw-2026-09-22-reliability.json`；
+- 分阶段检索：`retrieval-2026-09-22-reliability.json`；
+- 助手逐题复核：`reviews-2026-09-22-reliability.json`；
+- 汇总结果：`baseline-2026-09-22-reliability.json`。
+
+上一份定向质量修复基线保留如下：
 
 - 报告：`REPORT-2026-07-30-quality-fix.md`；
 - 原始结果：`raw-2026-07-30-quality-fix.json`；
@@ -28,10 +36,11 @@
 ## 固定配置
 
 - 回答模型：环境变量 `DEEPSEEK_MODEL`，当前预期为 `deepseek-v4-pro`；
-- BM25 候选数：20；
-- Embedding 候选数：20；
-- RRF 最终证据数：8；
-- 回答 temperature：沿用 `rag_answer.py` 的 0.2；
+- BM25 候选数：`MCWIKI_BM25_LIMIT`，默认 20；
+- Embedding 候选数：`MCWIKI_SEMANTIC_LIMIT`，默认 20；
+- RRF 最终证据数：`MCWIKI_EVIDENCE_LIMIT`，默认 8；
+- 证据上下文预算：`MCWIKI_CONTEXT_BUDGET`，默认 12,000 字符；
+- 回答 temperature：`MCWIKI_ANSWER_TEMPERATURE`，默认 0.2；
 - 可回答问题：`../retrieval_questions.json`；
 - 无答案问题：`unanswerable_questions.json`。
 

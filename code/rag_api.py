@@ -16,7 +16,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from qdrant_client import QdrantClient
 from starlette.exceptions import HTTPException
 
 from rag_answer import (
@@ -28,15 +27,16 @@ from rag_answer import (
     ModelUnavailableError,
     build_evidence,
 )
-from rag_retrieval.bm25 import search_bm25
 from rag_retrieval.hybrid import HybridResult, HybridRetriever
-from rag_retrieval.semantic import SemanticRetriever
-from rag_settings import RetrievalSettings
+from rag_retrieval.factory import build_default_retriever as _build_default_retriever
+from rag_settings import (
+    INSUFFICIENT_EVIDENCE_MESSAGE,
+    RetrievalSettings,
+    ServiceSettings,
+)
 
 
 VISITOR_COOKIE_NAME = "mcwiki_visitor_id"
-VISITOR_COOKIE_MAX_AGE = 15_552_000
-INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
 logger = logging.getLogger(__name__)
 
 
@@ -94,33 +94,6 @@ class AnswerRequest(BaseModel):
         return normalized
 
 
-def _build_default_retriever(
-    settings: RetrievalSettings | None = None,
-) -> tuple[HybridRetriever, httpx.Client, QdrantClient]:
-    settings = settings or RetrievalSettings.from_env()
-    ollama = httpx.Client(timeout=60.0)
-    qdrant = QdrantClient(url=settings.qdrant_url, timeout=10.0)
-    semantic = SemanticRetriever(
-        ollama_client=ollama,
-        qdrant_client=qdrant,
-        model=settings.embedding_model,
-        collection_name=settings.collection,
-        vector_size=settings.vector_size,
-    )
-    hybrid = HybridRetriever(
-        search_bm25=lambda query, limit: search_bm25(
-            settings.bm25_path,
-            query,
-            limit=limit,
-        ),
-        search_semantic=lambda query, limit: semantic.search(
-            query,
-            limit=limit,
-        ),
-    )
-    return hybrid, ollama, qdrant
-
-
 def _retrieval_checks(app: FastAPI) -> dict[str, str]:
     settings: RetrievalSettings | None = getattr(app.state, "retrieval_settings", None)
     if settings is None:
@@ -144,17 +117,28 @@ def _default_lifespan() -> Any:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings = RetrievalSettings.from_env()
         retriever, ollama, qdrant = _build_default_retriever(settings)
+        service_settings: ServiceSettings = app.state.service_settings
         deepseek_http = httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=10.0, read=90.0, write=30.0, pool=10.0)
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=service_settings.deepseek_read_timeout,
+                write=30.0,
+                pool=10.0,
+            )
         )
         app.state.retriever = retriever
         app.state.qdrant = qdrant
         app.state.retrieval_settings = settings
+        checks = _retrieval_checks(app)
+        if any(value != "ok" for value in checks.values()):
+            logger.error("Knowledge base is not ready at startup: %s", checks)
         try:
             answer_settings = DeepSeekSettings.from_env()
             app.state.answer_client = DeepSeekAnswerClient(
                 settings=answer_settings,
                 http_client=deepseek_http,
+                temperature=service_settings.answer_temperature,
+                thinking_type=service_settings.answer_thinking_type,
             )
         except AnswerConfigurationError:
             logger.warning("DeepSeek answer service is unconfigured")
@@ -213,6 +197,7 @@ def create_app(
         title="MCwiki RAG API",
         lifespan=_default_lifespan() if use_default_lifespan else None,
     )
+    app.state.service_settings = ServiceSettings.from_env()
     if retriever is not None:
         app.state.retriever = retriever
     if answer_client is not None:
@@ -306,6 +291,10 @@ def create_app(
     ) -> Response:
         current_retriever = getattr(request.app.state, "retriever", None)
         current_answer_client = getattr(request.app.state, "answer_client", None)
+        retrieval_settings: RetrievalSettings = (
+            getattr(request.app.state, "retrieval_settings", None)
+            or RetrievalSettings.from_env()
+        )
         if current_answer_client is None:
             return _error_response(
                 503,
@@ -321,9 +310,9 @@ def create_app(
                 partial(
                     current_retriever.search,
                     body.question,
-                    bm25_limit=20,
-                    semantic_limit=20,
-                    limit=8,
+                    bm25_limit=retrieval_settings.bm25_limit,
+                    semantic_limit=retrieval_settings.semantic_limit,
+                    limit=retrieval_settings.evidence_limit,
                 )
             )
         except Exception:
@@ -334,7 +323,9 @@ def create_app(
                 "知识库检索暂时不可用，请稍后重试。",
             )
 
-        evidence = build_evidence(results)
+        evidence = build_evidence(
+            results, max_context_chars=retrieval_settings.max_context_chars
+        )
 
         async def event_stream() -> AsyncIterator[str]:
             yield _sse_event("meta", {"question": body.question})
@@ -400,7 +391,7 @@ def create_app(
             response.set_cookie(
                 key=VISITOR_COOKIE_NAME,
                 value=str(uuid4()),
-                max_age=VISITOR_COOKIE_MAX_AGE,
+                max_age=request.app.state.service_settings.cookie_max_age,
                 path="/",
                 secure=secure_cookie,
                 httponly=True,

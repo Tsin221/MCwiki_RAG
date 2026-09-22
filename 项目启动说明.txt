@@ -25,6 +25,8 @@ Copy-Item .env.example .env
 
 然后编辑 .env，填写本地使用的 DEEPSEEK_API_KEY。
 不要把真实密钥放进 frontend 目录，也不要提交到 Git。
+其余 MCWIKI_* 配置项及默认值见 .env.example。检索数量、证据预算或回答参数发生
+变化时，需要重新运行固定 18 题并与历史基线比较。
 
 2. 安装后端依赖
 

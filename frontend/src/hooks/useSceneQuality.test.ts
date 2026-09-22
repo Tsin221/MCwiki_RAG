@@ -9,8 +9,6 @@ describe('chooseSceneQuality', () => {
     ).toEqual({
       level: 'low',
       dpr: [1, 1],
-      blockCount: 18,
-      particleCount: 36,
     })
     expect(
       chooseSceneQuality({ viewportWidth: 1440, hardwareConcurrency: 4 }),
@@ -23,8 +21,6 @@ describe('chooseSceneQuality', () => {
     ).toEqual({
       level: 'high',
       dpr: [1, 1.5],
-      blockCount: 34,
-      particleCount: 84,
     })
   })
 })

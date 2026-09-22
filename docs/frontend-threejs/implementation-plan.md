@@ -30,8 +30,7 @@ frontend/src/
 │  │  └─ SourceCard.tsx
 │  └─ scene/
 │     ├─ AmbientScene.tsx
-│     ├─ FloatingIsland.tsx
-│     ├─ SceneEffects.tsx
+│     ├─ SunsetShaderPlane.tsx
 │     └─ SceneFallback.tsx
 ├─ hooks/
 │  ├─ useAnswerStream.ts
@@ -53,8 +52,8 @@ frontend/src/
 ## 3. 实施顺序
 
 问答骨架、静态视觉、当前 Shader 背景和状态联动已完成。实际文件结构与最初建议略有差异：场景实现拆分为
-`AmbientScene`、`SceneLayer` 和 `SceneFallback`。`FloatingIsland` 与
-`SceneParticles` 已编写，但目前未接入 `AmbientScene`。
+`AmbientScene`、`SunsetShaderPlane`、`SceneLayer` 和 `SceneFallback`。
+未接入的浮空岛与粒子试验组件已清理。
 
 ### 阶段 A：问答骨架
 

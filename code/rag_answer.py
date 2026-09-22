@@ -9,6 +9,11 @@ from typing import Any
 import httpx
 
 from rag_retrieval.hybrid import HybridResult
+from rag_settings import (
+    DEFAULT_ANSWER_TEMPERATURE,
+    DEFAULT_ANSWER_THINKING_TYPE,
+    DEFAULT_MAX_CONTEXT_CHARS,
+)
 
 
 SYSTEM_PROMPT = """你是 MC Wiki 助手。请严格遵守以下规则：
@@ -23,9 +28,6 @@ SYSTEM_PROMPT = """你是 MC Wiki 助手。请严格遵守以下规则：
 """
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro"
-DEFAULT_MAX_CONTEXT_CHARS = 12_000
-DEFAULT_ANSWER_TEMPERATURE = 0.2
-DEFAULT_ANSWER_THINKING_TYPE = "disabled"
 
 
 class AnswerConfigurationError(RuntimeError):
@@ -170,9 +172,13 @@ class DeepSeekAnswerClient:
         *,
         settings: DeepSeekSettings,
         http_client: httpx.AsyncClient,
+        temperature: float = DEFAULT_ANSWER_TEMPERATURE,
+        thinking_type: str = DEFAULT_ANSWER_THINKING_TYPE,
     ) -> None:
         self._settings = settings
         self._http_client = http_client
+        self._temperature = temperature
+        self._thinking_type = thinking_type
 
     async def stream_answer(
         self,
@@ -189,8 +195,8 @@ class DeepSeekAnswerClient:
                 },
             ],
             "stream": True,
-            "temperature": DEFAULT_ANSWER_TEMPERATURE,
-            "thinking": {"type": DEFAULT_ANSWER_THINKING_TYPE},
+            "temperature": self._temperature,
+            "thinking": {"type": self._thinking_type},
         }
         headers = {
             "authorization": f"Bearer {self._settings.api_key}",

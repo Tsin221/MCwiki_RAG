@@ -16,14 +16,10 @@ export function chooseSceneQuality({
     ? {
         level: 'low',
         dpr: [1, 1],
-        blockCount: 18,
-        particleCount: 36,
       }
     : {
         level: 'high',
         dpr: [1, 1.5],
-        blockCount: 34,
-        particleCount: 84,
       }
 }
 

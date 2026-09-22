@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
@@ -18,19 +19,22 @@ import httpx
 
 from rag_answer import (
     AnswerEvidence,
-    DEFAULT_ANSWER_TEMPERATURE,
-    DEFAULT_ANSWER_THINKING_TYPE,
-    DEFAULT_MAX_CONTEXT_CHARS,
     DeepSeekAnswerClient,
     DeepSeekSettings,
     SYSTEM_PROMPT,
     build_evidence,
 )
 from rag_retrieval.hybrid import HybridResult
+from rag_retrieval.factory import build_default_retriever
+from rag_settings import (
+    INSUFFICIENT_EVIDENCE_MESSAGE,
+    RetrievalSettings,
+    ServiceSettings,
+)
 
 
 CITATION_PATTERN = re.compile(r"\[(\d+)\]")
-INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
+logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ANSWERABLE_CASES = PROJECT_ROOT / "data/evaluation/retrieval_questions.json"
 DEFAULT_UNANSWERABLE_CASES = (
@@ -88,6 +92,9 @@ def _sha256_text(value: str) -> str:
 def build_evaluation_configuration(
     settings: DeepSeekSettings,
     cases: Sequence[Mapping[str, Any]],
+    *,
+    retrieval_settings: RetrievalSettings | None = None,
+    service_settings: ServiceSettings | None = None,
 ) -> dict[str, Any]:
     """Describe every fixed input that must remain stable across a resumed run."""
     serialized_cases = json.dumps(
@@ -96,15 +103,22 @@ def build_evaluation_configuration(
         sort_keys=True,
         separators=(",", ":"),
     )
+    retrieval_settings = retrieval_settings or RetrievalSettings.from_env()
+    service_settings = service_settings or ServiceSettings.from_env()
     return {
         "model": settings.model,
         "baseUrl": settings.base_url,
-        "bm25Limit": 20,
-        "semanticLimit": 20,
-        "evidenceLimit": 8,
-        "maxContextChars": DEFAULT_MAX_CONTEXT_CHARS,
-        "temperature": DEFAULT_ANSWER_TEMPERATURE,
-        "thinkingType": DEFAULT_ANSWER_THINKING_TYPE,
+        "qdrantUrl": retrieval_settings.qdrant_url,
+        "collection": retrieval_settings.collection,
+        "embeddingModel": retrieval_settings.embedding_model,
+        "vectorSize": retrieval_settings.vector_size,
+        "bm25Limit": retrieval_settings.bm25_limit,
+        "semanticLimit": retrieval_settings.semantic_limit,
+        "evidenceLimit": retrieval_settings.evidence_limit,
+        "maxContextChars": retrieval_settings.max_context_chars,
+        "temperature": service_settings.answer_temperature,
+        "thinkingType": service_settings.answer_thinking_type,
+        "readTimeoutSeconds": service_settings.deepseek_read_timeout,
         "systemPromptFingerprint": _sha256_text(SYSTEM_PROMPT),
         "datasetFingerprint": _sha256_text(serialized_cases),
     }
@@ -127,7 +141,11 @@ def validate_resume_output(
         raise ValueError(
             f"resume output contains unknown case ids: {', '.join(sorted(unknown_ids))}"
         )
-    return set(completed_ids)
+    return {
+        str(case["id"])
+        for case in output.get("cases", [])
+        if "error" not in case
+    }
 
 
 def validate_complete_output(
@@ -151,6 +169,9 @@ def validate_complete_output(
         if unknown_ids:
             details.append(f"unknown: {', '.join(sorted(unknown_ids))}")
         raise ValueError(f"evaluation run is incomplete ({'; '.join(details)})")
+    failed_ids = [str(case["id"]) for case in output.get("cases", []) if "error" in case]
+    if failed_ids:
+        raise ValueError(f"evaluation run has failed cases: {', '.join(failed_ids)}")
 
 
 def normalize_source_url(value: str) -> str:
@@ -249,21 +270,25 @@ async def run_answer_case(
     *,
     retriever: EvaluationRetriever,
     answer_client: EvaluationAnswerClient,
+    retrieval_settings: RetrievalSettings | None = None,
 ) -> dict[str, Any]:
     """Run the same retrieval and generation path used by POST /answers."""
     question = str(case["question"])
+    retrieval_settings = retrieval_settings or RetrievalSettings.from_env()
     retrieval_started = perf_counter()
     results = await anyio.to_thread.run_sync(
         partial(
             retriever.search,
             question,
-            bm25_limit=20,
-            semantic_limit=20,
-            limit=8,
+            bm25_limit=retrieval_settings.bm25_limit,
+            semantic_limit=retrieval_settings.semantic_limit,
+            limit=retrieval_settings.evidence_limit,
         )
     )
     retrieval_ms = round((perf_counter() - retrieval_started) * 1_000, 2)
-    evidence = build_evidence(results)
+    evidence = build_evidence(
+        results, max_context_chars=retrieval_settings.max_context_chars
+    )
 
     generation_started = perf_counter()
     if evidence:
@@ -426,11 +451,15 @@ async def run_evaluation(
     output_path: Path,
 ) -> None:
     """Run all fixed cases, saving after every case so an interrupted run can resume."""
-    from rag_api import _build_default_retriever
-
     cases = load_evaluation_cases(answerable_path, unanswerable_path)
     settings = DeepSeekSettings.from_env()
-    configuration = build_evaluation_configuration(settings, cases)
+    retrieval_settings = RetrievalSettings.from_env()
+    service_settings = ServiceSettings.from_env()
+    configuration = build_evaluation_configuration(
+        settings, cases,
+        retrieval_settings=retrieval_settings,
+        service_settings=service_settings,
+    )
     if output_path.exists():
         output = _load_json(output_path)
         completed_ids = validate_resume_output(
@@ -446,13 +475,20 @@ async def run_evaluation(
         }
         completed_ids = set()
 
-    retriever, ollama, qdrant = _build_default_retriever()
+    retriever, ollama, qdrant = build_default_retriever(retrieval_settings)
     deepseek_http = httpx.AsyncClient(
-        timeout=httpx.Timeout(connect=10.0, read=90.0, write=30.0, pool=10.0)
+        timeout=httpx.Timeout(
+            connect=10.0,
+            read=service_settings.deepseek_read_timeout,
+            write=30.0,
+            pool=10.0,
+        )
     )
     answer_client = DeepSeekAnswerClient(
         settings=settings,
         http_client=deepseek_http,
+        temperature=service_settings.answer_temperature,
+        thinking_type=service_settings.answer_thinking_type,
     )
     try:
         for index, case in enumerate(cases, start=1):
@@ -460,17 +496,28 @@ async def run_evaluation(
                 print(f"[{index}/{len(cases)}] skip {case['id']} (already complete)")
                 continue
             print(f"[{index}/{len(cases)}] run {case['id']}")
-            result = await run_answer_case(
-                case,
-                retriever=retriever,
-                answer_client=answer_client,
-            )
+            try:
+                result = await run_answer_case(
+                    case,
+                    retriever=retriever,
+                    answer_client=answer_client,
+                    retrieval_settings=retrieval_settings,
+                )
+            except Exception as error:
+                logger.exception("Evaluation case failed: %s", case["id"])
+                result = {"id": str(case["id"]), "error": type(error).__name__}
+                print(f"[{index}/{len(cases)}] failed {case['id']}: {type(error).__name__}")
+            output["cases"] = [
+                existing for existing in output["cases"]
+                if existing["id"] != case["id"]
+            ]
             output["cases"].append(result)
             _write_json(output_path, output)
-            print(
-                f"[{index}/{len(cases)}] saved {case['id']} "
-                f"({result['timingMs']['total']} ms)"
-            )
+            if "error" not in result:
+                print(
+                    f"[{index}/{len(cases)}] saved {case['id']} "
+                    f"({result['timingMs']['total']} ms)"
+                )
     finally:
         await deepseek_http.aclose()
         ollama.close()

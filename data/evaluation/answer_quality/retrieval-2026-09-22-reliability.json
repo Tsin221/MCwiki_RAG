@@ -1,0 +1,143 @@
+{
+  "date": "2026-09-22T13:09:21+08:00",
+  "settings": {
+    "collection": "mcwiki_chunks",
+    "embeddingModel": "qwen3-embedding:0.6b",
+    "bm25Limit": 20,
+    "semanticLimit": 20,
+    "evidenceLimit": 8,
+    "maxContextChars": 12000
+  },
+  "metrics": {
+    "bm25RankHitAt20": 0.0667,
+    "bm25RankMrrAt20": 0.0333,
+    "semanticRankHitAt20": 0.9333,
+    "semanticRankMrrAt20": 0.8022,
+    "fusedRankHitAt10": 1.0,
+    "fusedRankMrrAt10": 0.8189,
+    "finalEvidenceRecall": 1.0,
+    "averageRetrievalMs": 58.03
+  },
+  "cases": [
+    {
+      "id": "redstone-repeater-delay",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 84.73
+    },
+    {
+      "id": "creeper-behavior",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 62.07
+    },
+    {
+      "id": "enchanting-table-bookshelves",
+      "bm25Rank": null,
+      "semanticRank": 2,
+      "fusedRank": 2,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 41.69
+    },
+    {
+      "id": "nether-portal-frame",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 53.77
+    },
+    {
+      "id": "ender-dragon-defeat",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 79.19
+    },
+    {
+      "id": "brewing-stand-fuel",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 63.54
+    },
+    {
+      "id": "iron-golem-spawning",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 78.32
+    },
+    {
+      "id": "command-block-obtain",
+      "bm25Rank": null,
+      "semanticRank": 5,
+      "fusedRank": 5,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 58.66
+    },
+    {
+      "id": "java-1-21-content",
+      "bm25Rank": 2,
+      "semanticRank": null,
+      "fusedRank": 4,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 83.59
+    },
+    {
+      "id": "diamond-ore-generation",
+      "bm25Rank": null,
+      "semanticRank": 3,
+      "fusedRank": 3,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 54.39
+    },
+    {
+      "id": "spawner-activation",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 33.91
+    },
+    {
+      "id": "ender-pearl-use",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 32.68
+    },
+    {
+      "id": "shulker-box-storage",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 57.28
+    },
+    {
+      "id": "ocean-monument-mobs",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 34.59
+    },
+    {
+      "id": "illager-patrol",
+      "bm25Rank": null,
+      "semanticRank": 1,
+      "fusedRank": 1,
+      "evidenceContainsExpected": true,
+      "retrievalMs": 52.09
+    }
+  ]
+}
