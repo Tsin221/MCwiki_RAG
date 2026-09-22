@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { AnswerMarkdown } from './components/chat/AnswerMarkdown'
 import { ChatMessage } from './components/chat/ChatMessage'
@@ -6,6 +6,7 @@ import { QuestionComposer } from './components/chat/QuestionComposer'
 import { SourceCard } from './components/chat/SourceCard'
 import { SceneLayer } from './components/scene/SceneLayer'
 import { useAnswerStream } from './hooks/useAnswerStream'
+import { getReadiness } from './lib/api'
 
 const EXAMPLE_QUESTIONS = [
   '红石中继器有什么作用？',
@@ -24,9 +25,43 @@ const STATUS_COPY = {
   interrupted: '回答中断',
 } as const
 
+const CONNECTION_COPY = {
+  checking: '正在检查连接',
+  ready: '知识库已连接',
+  modelUnavailable: '回答服务未配置',
+  unavailable: '知识库不可用',
+} as const
+
 export default function App() {
   const [input, setInput] = useState('')
+  const [connection, setConnection] = useState<keyof typeof CONNECTION_COPY>('checking')
   const answer = useAnswerStream()
+
+  useEffect(() => {
+    let active = true
+    const refresh = async () => {
+      try {
+        const status = await getReadiness()
+        if (active) {
+          setConnection(
+            !status.retrievalReady
+              ? 'unavailable'
+              : status.answerReady
+                ? 'ready'
+                : 'modelUnavailable',
+          )
+        }
+      } catch {
+        if (active) setConnection('unavailable')
+      }
+    }
+    void refresh()
+    const timer = window.setInterval(() => void refresh(), 15_000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
 
   const submit = () => {
     const question = input.trim()
@@ -51,9 +86,9 @@ export default function App() {
             <small>探索者知识终端</small>
           </span>
         </a>
-        <div className="knowledge-badge">
+        <div className="knowledge-badge" data-status={connection} role="status">
           <span aria-hidden="true" />
-          知识库已连接
+          {CONNECTION_COPY[connection]}
         </div>
       </header>
 

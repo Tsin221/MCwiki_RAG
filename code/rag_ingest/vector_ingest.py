@@ -10,10 +10,7 @@ from typing import Any
 import httpx
 from qdrant_client import QdrantClient, models
 
-
-DEFAULT_MODEL = "qwen3-embedding:0.6b"
-DEFAULT_COLLECTION = "mcwiki_chunks"
-DEFAULT_VECTOR_SIZE = 1024
+from rag_settings import RetrievalSettings
 
 
 def project_root() -> Path:
@@ -238,15 +235,16 @@ def ingest(
 
 
 def parse_args() -> argparse.Namespace:
+    settings = RetrievalSettings.from_env()
     parser = argparse.ArgumentParser(
         description="Generate Ollama embeddings and upsert all chunks into Qdrant."
     )
     parser.add_argument("--input", type=Path, default=default_input_path())
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
-    parser.add_argument("--qdrant-url", default="http://127.0.0.1:6333")
-    parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--collection", default=DEFAULT_COLLECTION)
-    parser.add_argument("--vector-size", type=int, default=DEFAULT_VECTOR_SIZE)
+    parser.add_argument("--qdrant-url", default=settings.qdrant_url)
+    parser.add_argument("--model", default=settings.embedding_model)
+    parser.add_argument("--collection", default=settings.collection)
+    parser.add_argument("--vector-size", type=int, default=settings.vector_size)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--timeout-seconds", type=float, default=300.0)
     return parser.parse_args()

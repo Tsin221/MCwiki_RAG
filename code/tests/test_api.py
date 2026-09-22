@@ -1,13 +1,18 @@
 import json
+import tempfile
 import unittest
 from collections.abc import AsyncIterator
 from http.cookies import SimpleCookie
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from rag_answer import AnswerEvidence, ModelUnavailableError
+from rag_answer import AnswerConfigurationError, AnswerEvidence, ModelUnavailableError
 from rag_api import create_app
 from rag_retrieval.hybrid import HybridResult
+from rag_settings import RetrievalSettings
 
 
 class FakeHybridRetriever:
@@ -74,6 +79,69 @@ class SearchApiTests(unittest.TestCase):
     def setUp(self):
         self.retriever = FakeHybridRetriever()
         self.client = TestClient(create_app(retriever=self.retriever))
+
+    def test_search_failure_uses_shared_error_contract(self):
+        client = TestClient(create_app(retriever=FakeHybridRetriever(error=RuntimeError("private detail"))))
+        response = client.post("/search", json={"query": "红石"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["error"]["code"], "RETRIEVAL_UNAVAILABLE")
+        self.assertNotIn("private detail", response.text)
+
+    def test_missing_route_and_wrong_method_use_shared_error_contract(self):
+        self.assertEqual(self.client.get("/missing").json()["error"]["code"], "NOT_FOUND")
+        response = self.client.get("/answers")
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json()["error"]["code"], "METHOD_NOT_ALLOWED")
+
+    def test_wrong_qdrant_collection_blocks_retrieval_and_readiness(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bm25_path = Path(directory) / "bm25.db"
+            bm25_path.touch()
+            app = create_app(retriever=self.retriever, answer_client=FakeAnswerClient())
+            app.state.retrieval_settings = RetrievalSettings(bm25_path=bm25_path)
+            app.state.qdrant = SimpleNamespace(get_collection=lambda name: (_ for _ in ()).throw(RuntimeError("missing collection")))
+            client = TestClient(app)
+            self.assertEqual(client.get("/health").json(), {"api": "ok"})
+            self.assertEqual(client.get("/ready").status_code, 503)
+            response = client.post("/search", json={"query": "红石"})
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json()["error"]["code"], "RETRIEVAL_UNAVAILABLE")
+            self.assertEqual(self.retriever.calls, [])
+
+    def test_wrong_qdrant_vector_dimension_is_not_ready(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bm25_path = Path(directory) / "bm25.db"
+            bm25_path.touch()
+            app = create_app(retriever=self.retriever, answer_client=FakeAnswerClient())
+            app.state.retrieval_settings = RetrievalSettings(bm25_path=bm25_path)
+            app.state.qdrant = SimpleNamespace(get_collection=lambda name: SimpleNamespace(
+                config=SimpleNamespace(params=SimpleNamespace(vectors=SimpleNamespace(size=768))),
+                status="green",
+            ))
+            response = TestClient(app).get("/ready")
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json()["qdrant"], "mismatch")
+
+    def test_missing_answer_key_keeps_search_available(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bm25_path = Path(directory) / "bm25.db"
+            bm25_path.touch()
+            settings = RetrievalSettings(bm25_path=bm25_path)
+            collection = SimpleNamespace(
+                config=SimpleNamespace(params=SimpleNamespace(vectors=SimpleNamespace(size=1024))),
+                status="green",
+            )
+            qdrant = SimpleNamespace(get_collection=lambda name: collection, close=lambda: None)
+            with patch("rag_api.RetrievalSettings.from_env", return_value=settings), patch(
+                "rag_api._build_default_retriever",
+                return_value=(self.retriever, SimpleNamespace(close=lambda: None), qdrant),
+            ), patch("rag_api.DeepSeekSettings.from_env", side_effect=AnswerConfigurationError("missing")):
+                with TestClient(create_app()) as client:
+                    self.assertEqual(client.post("/search", json={"query": "红石"}).status_code, 200)
+                    self.assertEqual(client.get("/ready").json()["answer_model"], "unavailable")
+                    response = client.post("/answers", json={"question": "红石是什么？"})
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["error"]["code"], "CONFIGURATION_ERROR")
 
     def test_search_returns_camel_case_hybrid_results(self):
         response = self.client.post(
@@ -242,6 +310,26 @@ class AnswerApiTests(unittest.TestCase):
         self.assertEqual(events[-1][0], "error")
         self.assertEqual(events[-1][1]["code"], "MODEL_UNAVAILABLE")
         self.assertNotIn("secret upstream body", response.text)
+
+    def test_unexpected_stream_failure_becomes_internal_error_event(self):
+        client = TestClient(create_app(
+            retriever=FakeHybridRetriever(),
+            answer_client=FakeAnswerClient(chunks=[], error=RuntimeError("private detail")),
+        ))
+        response = client.post("/answers", json={"question": "红石是什么？"})
+        self.assertEqual(parse_sse(response.text)[-1][1]["code"], "INTERNAL_ERROR")
+        self.assertNotIn("private detail", response.text)
+
+    def test_secure_cookie_setting_is_applied(self):
+        client = TestClient(create_app(
+            retriever=FakeHybridRetriever(),
+            answer_client=FakeAnswerClient(),
+            cookie_secure=True,
+        ))
+        response = client.post("/answers", json={"question": "红石是什么？"})
+        cookie = SimpleCookie()
+        cookie.load(response.headers["set-cookie"])
+        self.assertTrue(cookie["mcwiki_visitor_id"]["secure"])
 
     def test_retrieval_failure_before_stream_uses_stable_json_error(self):
         client = TestClient(

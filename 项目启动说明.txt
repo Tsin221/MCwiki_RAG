@@ -67,9 +67,19 @@ http://localhost:5173
    请确保 Ollama 应用已经启动，并已安装项目配置所需的 embedding 模型。
 
 2. Qdrant
-   默认地址：http://127.0.0.1:6333
-   Dashboard：http://127.0.0.1:6333/dashboard
+   本项目地址：http://127.0.0.1:6335（由根目录 .env 的 MCWIKI_QDRANT_URL 指定）
+   Dashboard：http://127.0.0.1:6335/dashboard
    Collection：mcwiki_chunks
+   容器：mcwiki-qdrant；持久卷：mcwiki_qdrant_storage。
+
+   检查实例和数据：
+   docker ps --filter name=mcwiki-qdrant
+   Invoke-RestMethod http://127.0.0.1:6335/collections/mcwiki_chunks
+
+   应看到 collection 状态 green、向量维度 1024。当前数据为 41,368 点。
+   仅检查端口是否监听，无法确定连接的是本项目实例。
+   如需新建容器，先确认旧容器已经停止且数据卷没有被另一容器使用，再运行：
+   docker run -d --name mcwiki-qdrant --restart unless-stopped -p 127.0.0.1:6335:6333 -p 127.0.0.1:6336:6334 -v mcwiki_qdrant_storage:/qdrant/storage qdrant/qdrant:latest
 
 如果 Qdrant 或 Ollama 没有运行，网页仍可能打开，但搜索和回答请求会失败。
 
@@ -84,10 +94,15 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 后端：
 
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/docs
+Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8000/ready
+
+/health 只表示 API 正在运行；/ready 检查 BM25、目标 Qdrant collection 和回答服务配置。
+缺少 DeepSeek Key 时，/search 仍可用，/answers 返回 CONFIGURATION_ERROR。
 
 Qdrant：
 
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:6333/healthz
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:6335/healthz
 
 
 五、运行测试
@@ -134,7 +149,9 @@ http://localhost:5173。
 
 4. 检索失败
 
-确认 Ollama 的 11434 端口和 Qdrant 的 6333 端口正在监听。
+确认 Ollama 的 11434 端口可用，并检查 /ready 的 bm25 与 qdrant 状态。
+本项目 Qdrant 使用 6335；如果显示 qdrant=mismatch 或 unavailable，检查
+MCWIKI_QDRANT_URL、容器、mcwiki_chunks collection 和向量维度。
 
 5. 8000 端口已被其他项目占用
 

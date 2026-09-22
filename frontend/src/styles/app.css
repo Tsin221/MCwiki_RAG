@@ -136,6 +136,17 @@
   box-shadow: 0 0 14px rgb(184 214 122 / 72%);
 }
 
+.knowledge-badge[data-status="checking"] span,
+.knowledge-badge[data-status="modelUnavailable"] span {
+  background: #e5bb77;
+  box-shadow: 0 0 14px rgb(229 187 119 / 50%);
+}
+
+.knowledge-badge[data-status="unavailable"] span {
+  background: #e38a7e;
+  box-shadow: 0 0 14px rgb(227 138 126 / 50%);
+}
+
 .content {
   position: relative;
   z-index: 2;

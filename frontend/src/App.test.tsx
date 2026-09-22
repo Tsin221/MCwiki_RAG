@@ -2,19 +2,35 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestAnswer } from './lib/api'
+import { getReadiness, requestAnswer } from './lib/api'
 import App from './App'
 
 vi.mock('./lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/api')>()
-  return { ...actual, requestAnswer: vi.fn() }
+  return { ...actual, requestAnswer: vi.fn(), getReadiness: vi.fn() }
 })
 
 const requestAnswerMock = vi.mocked(requestAnswer)
+const getReadinessMock = vi.mocked(getReadiness)
 
 describe('App', () => {
   beforeEach(() => {
     requestAnswerMock.mockReset()
+    getReadinessMock.mockReset()
+    getReadinessMock.mockResolvedValue({ retrievalReady: true, answerReady: true })
+  })
+
+  it('shows the actual knowledge service state', async () => {
+    getReadinessMock.mockResolvedValueOnce({ retrievalReady: false, answerReady: false })
+    render(<App />)
+    expect(await screen.findByText('知识库不可用')).toBeVisible()
+    expect(screen.queryByText('知识库已连接')).not.toBeInTheDocument()
+  })
+
+  it('shows when retrieval works but the answer model is not configured', async () => {
+    getReadinessMock.mockResolvedValueOnce({ retrievalReady: true, answerReady: false })
+    render(<App />)
+    expect(await screen.findByText('回答服务未配置')).toBeVisible()
   })
 
   it('submits a question and renders streamed text with its source', async () => {

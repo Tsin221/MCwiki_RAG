@@ -7,10 +7,10 @@ from typing import Any
 import httpx
 from qdrant_client import QdrantClient
 
+from rag_settings import DEFAULT_COLLECTION, DEFAULT_EMBEDDING_MODEL, DEFAULT_VECTOR_SIZE
 
-DEFAULT_MODEL = "qwen3-embedding:0.6b"
-DEFAULT_COLLECTION = "mcwiki_chunks"
-DEFAULT_VECTOR_SIZE = 1024
+
+DEFAULT_MODEL = DEFAULT_EMBEDDING_MODEL
 
 
 @dataclass(frozen=True, slots=True)

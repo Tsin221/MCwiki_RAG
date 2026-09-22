@@ -8,6 +8,23 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ??
   'http://localhost:8000'
 
+export type Readiness = {
+  retrievalReady: boolean
+  answerReady: boolean
+}
+
+export async function getReadiness(signal?: AbortSignal): Promise<Readiness> {
+  const response = await fetch(`${API_BASE_URL}/ready`, { signal })
+  const payload: unknown = await response.json()
+  if (!isRecord(payload)) {
+    throw new Error('Invalid readiness response')
+  }
+  return {
+    retrievalReady: payload.bm25 === 'ok' && payload.qdrant === 'ok',
+    answerReady: payload.answer_model === 'configured',
+  }
+}
+
 type EventHandler = (event: AnswerStreamEvent) => void
 
 export class AnswerRequestError extends Error {

@@ -33,8 +33,8 @@ Elasticsearch、LangGraph 或联网检索。下一阶段继续深化基础 RAG �
 - 清洗分块：`data/processed/chunks.jsonl`，41,368 个文档块；
 - Embedding：Ollama `qwen3-embedding:0.6b`；
 - 向量维度：1024；
-- Qdrant 地址：`http://127.0.0.1:6333`；
-- Qdrant Dashboard：`http://127.0.0.1:6333/dashboard`；
+- 本机 Qdrant 地址：`http://127.0.0.1:6335`（`.env` 中的 `MCWIKI_QDRANT_URL`）；
+- Qdrant Dashboard：`http://127.0.0.1:6335/dashboard`；
 - Qdrant collection：`mcwiki_chunks`；
 - 距离函数：Cosine；
 - Qdrant `points_count`：41,368；

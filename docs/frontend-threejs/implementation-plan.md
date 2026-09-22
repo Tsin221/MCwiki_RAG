@@ -1,6 +1,6 @@
 # Three.js 问答前端实施计划
 
-状态：已实施，阶段 A～E 的基础验收已完成
+状态：问答界面和当前 Shader 背景已实施；原计划中的浮空岛、雾效与粒子未接入
 
 更新时间：2026-07-30
 
@@ -52,9 +52,9 @@ frontend/src/
 
 ## 3. 实施顺序
 
-以下阶段均已按顺序完成。实际文件结构与最初建议略有差异：场景实现拆分为
-`AmbientScene`、`FloatingIsland`、`SceneLayer`、`SceneParticles` 和
-`SceneFallback`，以保持场景职责清晰。
+问答骨架、静态视觉、当前 Shader 背景和状态联动已完成。实际文件结构与最初建议略有差异：场景实现拆分为
+`AmbientScene`、`SceneLayer` 和 `SceneFallback`。`FloatingIsland` 与
+`SceneParticles` 已编写，但目前未接入 `AmbientScene`。
 
 ### 阶段 A：问答骨架
 
@@ -78,7 +78,7 @@ frontend/src/
 ### 阶段 C：Three.js 场景
 
 - 异步加载 Canvas；
-- 实现浮空方块岛、灯光、雾和少量粒子；
+- 实现当前使用的 `SunsetShaderPlane` 动态背景；浮空方块岛与粒子组件暂未接入；
 - 设置桌面与移动端质量等级；
 - 保证 Canvas 不参与交互和页面语义；
 - 处理初始化失败、页面隐藏和组件卸载。
