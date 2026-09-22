@@ -114,5 +114,6 @@ BM25 构建命令默认读取 `data/processed/chunks.jsonl` 并同步
 向量写入命令可重复执行。它会先读取 `mcwiki_chunks` 中已有的点 ID，只处理缺失
 文档块，因此适合在长时间任务中断后继续运行。
 
-下一步实施公开部署前的限流、请求预算、监控、HTTPS Cookie 和滥用防护。最新对比
-报告见 `data/evaluation/answer_quality/REPORT-2026-07-30-quality-fix.md`。
+下一步继续深化基础 RAG 工程：维护固定 18 题回归门槛，依据具体失败案例选择改进项。
+限流、请求预算、监控、HTTPS Cookie 和滥用防护留到明确需要公开部署时再实施。
+最新对比报告见 `data/evaluation/answer_quality/REPORT-2026-07-30-quality-fix.md`。
