@@ -8,6 +8,12 @@ from typing import Any
 
 import httpx
 
+from rag_evidence import (
+    AnswerEvidence,
+    EvidenceCandidate,
+    SelectionConfig,
+    select_evidence,
+)
 from rag_retrieval.hybrid import HybridResult
 from rag_settings import (
     DEFAULT_ANSWER_TEMPERATURE,
@@ -73,61 +79,28 @@ class DeepSeekSettings:
         return cls(api_key=api_key, base_url=base_url, model=model)
 
 
-@dataclass(frozen=True, slots=True)
-class AnswerEvidence:
-    id: int
-    chunk_id: str
-    title: str
-    url: str
-    text: str
-    excerpt: str
-
-
-def _excerpt(text: str, *, max_chars: int = 220) -> str:
-    compact = " ".join(text.split())
-    if len(compact) <= max_chars:
-        return compact
-    return f"{compact[: max_chars - 1].rstrip()}…"
-
-
 def build_evidence(
     results: Sequence[HybridResult],
     *,
     max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
 ) -> list[AnswerEvidence]:
     """Select ranked, non-duplicate evidence within a conservative character budget."""
-    if max_context_chars <= 0:
-        raise ValueError("max_context_chars must be greater than zero")
-
-    evidence: list[AnswerEvidence] = []
-    seen_text: set[str] = set()
-    used_chars = 0
-    for result in results:
-        text = result.text.strip()
-        normalized = " ".join(text.split())
-        if not normalized or normalized in seen_text:
-            continue
-        seen_text.add(normalized)
-
-        remaining = max_context_chars - used_chars
-        if remaining <= 0:
-            break
-        if evidence and len(text) > remaining:
-            break
-        selected_text = text[:remaining]
-        evidence.append(
-            AnswerEvidence(
-                id=len(evidence) + 1,
-                chunk_id=result.chunk_id,
-                title=result.title,
-                url=result.source,
-                text=selected_text,
-                excerpt=_excerpt(selected_text),
-            )
+    candidates = [
+        EvidenceCandidate(
+            chunk_id=result.chunk_id,
+            title=result.title,
+            text=result.text,
+            source=result.source,
         )
-        used_chars += len(selected_text)
-
-    return evidence
+        for result in results
+    ]
+    return select_evidence(
+        candidates,
+        SelectionConfig(
+            strategy="ranked_first",
+            max_context_chars=max_context_chars,
+        ),
+    )
 
 
 def _context_message(question: str, evidence: Sequence[AnswerEvidence]) -> str:
