@@ -9,6 +9,7 @@ from typing import Any, Protocol
 import httpx
 
 from rag_settings import (
+    DEFAULT_QUERY_PLAN_THINKING_TYPE,
     DEFAULT_QUERY_PLAN_TIMEOUT,
     DEFAULT_QUERY_STRATEGY,
     MAX_RETRIEVAL_QUERIES,
@@ -173,7 +174,14 @@ def _parse_step_back(content: str) -> str | None:
 class DeepSeekStepBackPlanner:
     """Ask a chat model for one abstract background question, then fall back safely."""
 
-    __slots__ = ("_http_client", "_max_queries", "_settings", "_temperature", "_timeout")
+    __slots__ = (
+        "_http_client",
+        "_max_queries",
+        "_settings",
+        "_temperature",
+        "_thinking_type",
+        "_timeout",
+    )
 
     def __init__(
         self,
@@ -183,6 +191,7 @@ class DeepSeekStepBackPlanner:
         timeout: float = DEFAULT_QUERY_PLAN_TIMEOUT,
         temperature: float = DEFAULT_STEP_BACK_TEMPERATURE,
         max_queries: int = MAX_RETRIEVAL_QUERIES,
+        thinking_type: str = DEFAULT_QUERY_PLAN_THINKING_TYPE,
     ) -> None:
         if timeout <= 0:
             raise ValueError("timeout must be greater than zero")
@@ -192,11 +201,14 @@ class DeepSeekStepBackPlanner:
             raise ValueError(
                 f"max_queries must be between 1 and {MAX_RETRIEVAL_QUERIES}"
             )
+        if not thinking_type:
+            raise ValueError("thinking_type must not be blank")
         self._settings = settings
         self._http_client = http_client
         self._timeout = timeout
         self._temperature = temperature
         self._max_queries = max_queries
+        self._thinking_type = thinking_type
 
     async def plan(self, question: str) -> QueryPlan:
         """Plan retrieval; every model-side failure keeps only the original question."""
@@ -232,6 +244,7 @@ class DeepSeekStepBackPlanner:
             "stream": False,
             "temperature": self._temperature,
             "response_format": {"type": "json_object"},
+            "thinking": {"type": self._thinking_type},
         }
         headers = {
             "authorization": f"Bearer {self._settings.api_key}",
@@ -263,6 +276,7 @@ def build_query_planner(
     http_client: httpx.AsyncClient | None = None,
     timeout: float = DEFAULT_QUERY_PLAN_TIMEOUT,
     max_queries: int = MAX_RETRIEVAL_QUERIES,
+    thinking_type: str = DEFAULT_QUERY_PLAN_THINKING_TYPE,
 ) -> QueryPlanner:
     """Return the planner for a configured strategy, degrading to original-only."""
     if strategy == ORIGINAL_QUERY_STRATEGY:
@@ -281,4 +295,5 @@ def build_query_planner(
         http_client=http_client,
         timeout=timeout,
         max_queries=max_queries,
+        thinking_type=thinking_type,
     )

@@ -147,6 +147,7 @@ class StepBackPlannerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(body["stream"])
         self.assertEqual(body["response_format"], {"type": "json_object"})
         self.assertEqual(body["temperature"], 0.0)
+        self.assertEqual(body["thinking"], {"type": "disabled"})
         self.assertIn("step_back_question", body["messages"][0]["content"])
         self.assertIn("1.21.5 加入了什么？", body["messages"][1]["content"])
         self.assertNotIn("test-secret", json.dumps(body))
@@ -164,6 +165,17 @@ class StepBackPlannerTests(unittest.IsolatedAsyncioTestCase):
             plan.retrieval_queries,
             ("红石中继器如何延迟信号？", "红石信号的传输机制是什么"),
         )
+
+    async def test_applies_the_configured_thinking_mode(self):
+        captured: dict = {}
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return _chat_response("红石信号的传输机制是什么")
+
+        await self._plan_with(handler, thinking_type="enabled")
+
+        self.assertEqual(captured["body"]["thinking"], {"type": "enabled"})
 
     async def test_declined_abstraction_keeps_only_the_original_question(self):
         async def handler(request: httpx.Request) -> httpx.Response:
@@ -297,6 +309,12 @@ class StepBackPlannerTests(unittest.IsolatedAsyncioTestCase):
                 http_client=unused_client,
                 max_queries=MAX_RETRIEVAL_QUERIES + 1,
             )
+        with self.assertRaisesRegex(ValueError, "thinking_type"):
+            DeepSeekStepBackPlanner(
+                settings=CHAT_SETTINGS,
+                http_client=unused_client,
+                thinking_type="",
+            )
 
 
 class BuildQueryPlannerTests(unittest.IsolatedAsyncioTestCase):
@@ -318,7 +336,10 @@ class BuildQueryPlannerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(plan.retrieval_queries, ("红石中继器怎么用？",))
 
     async def test_step_back_with_a_chat_client_uses_the_model(self):
+        captured: dict = {}
+
         async def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
             return _chat_response("红石信号的传输机制是什么")
 
         async with httpx.AsyncClient(
@@ -329,10 +350,12 @@ class BuildQueryPlannerTests(unittest.IsolatedAsyncioTestCase):
                 settings=CHAT_SETTINGS,
                 http_client=http_client,
                 timeout=5.0,
+                thinking_type="enabled",
             )
             plan = await planner.plan("红石中继器怎么用？")
 
         self.assertIsInstance(planner, DeepSeekStepBackPlanner)
+        self.assertEqual(captured["body"]["thinking"], {"type": "enabled"})
         self.assertEqual(plan.strategy, STEP_BACK_QUERY_STRATEGY)
         self.assertEqual(
             plan.retrieval_queries,

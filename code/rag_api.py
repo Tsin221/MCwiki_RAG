@@ -151,6 +151,7 @@ def _default_lifespan() -> Any:
             http_client=deepseek_http,
             timeout=settings.query_plan_timeout,
             max_queries=settings.max_retrieval_queries,
+            thinking_type=settings.query_plan_thinking_type,
         )
         app.state.query_retriever = MultiQueryRetriever(
             retriever=retriever,

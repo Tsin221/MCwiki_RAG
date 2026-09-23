@@ -27,6 +27,7 @@ DEFAULT_QUERY_STRATEGY = ORIGINAL_QUERY_STRATEGY
 MIN_RETRIEVAL_QUERIES = 1
 MAX_RETRIEVAL_QUERIES = 2
 DEFAULT_QUERY_PLAN_TIMEOUT = 15.0
+DEFAULT_QUERY_PLAN_THINKING_TYPE = "disabled"
 INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
 
 
@@ -73,6 +74,7 @@ class RetrievalSettings:
     query_strategy: str = DEFAULT_QUERY_STRATEGY
     max_retrieval_queries: int = MAX_RETRIEVAL_QUERIES
     query_plan_timeout: float = DEFAULT_QUERY_PLAN_TIMEOUT
+    query_plan_thinking_type: str = DEFAULT_QUERY_PLAN_THINKING_TYPE
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> RetrievalSettings:
@@ -91,6 +93,11 @@ class RetrievalSettings:
         ).strip()
         if query_strategy not in SUPPORTED_QUERY_STRATEGIES:
             raise ValueError("MCWIKI_QUERY_STRATEGY is invalid")
+        query_plan_thinking_type = values.get(
+            "MCWIKI_QUERY_PLAN_THINKING_TYPE", DEFAULT_QUERY_PLAN_THINKING_TYPE
+        ).strip()
+        if not query_plan_thinking_type:
+            raise ValueError("MCWIKI_QUERY_PLAN_THINKING_TYPE must not be blank")
         return cls(
             qdrant_url=values.get("MCWIKI_QDRANT_URL", DEFAULT_QDRANT_URL).strip(),
             collection=values.get("MCWIKI_QDRANT_COLLECTION", DEFAULT_COLLECTION).strip(),
@@ -113,6 +120,7 @@ class RetrievalSettings:
             query_plan_timeout=_positive_float(
                 values, "MCWIKI_QUERY_PLAN_TIMEOUT", DEFAULT_QUERY_PLAN_TIMEOUT
             ),
+            query_plan_thinking_type=query_plan_thinking_type,
         )
 
 
