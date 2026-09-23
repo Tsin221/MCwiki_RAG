@@ -15,6 +15,10 @@ code/.idea/
 data/processed/*.db
 data/processed/*.db-*
 
+# Regenerable chunk corpus (~68 MB). Rebuild it locally from
+# data/original_dataset.json with the chunking command in RAG_ASSISTANT_GUIDE.md.
+data/processed/chunks.jsonl
+
 # Test and runtime leftovers
 code/tests/tmp*/
 *.log
