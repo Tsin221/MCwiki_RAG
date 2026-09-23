@@ -5,7 +5,9 @@ from contextlib import closing
 from pathlib import Path
 
 from rag_ingest.bm25_index import default_input_path, default_output_path
+from rag_bm25_diagnostics import search_with_strategy
 from rag_retrieval.bm25 import build_bm25_index, search_bm25
+from rag_retrieval.bm25_query import supported_strategies
 
 
 class _BM25Fixture:
@@ -174,6 +176,20 @@ class BM25QueryTests(_BM25Fixture, unittest.TestCase):
 
     def test_treats_fts_syntax_as_literal_text(self):
         self.assertEqual(search_bm25(self.database_path, 'NEAR("'), [])
+
+    def test_diagnostic_strategies_do_not_execute_fts_syntax_from_input(self):
+        malicious_queries = ('NEAR("', '红石" OR title:泥土', '*/ UNION SELECT * --')
+
+        for strategy in supported_strategies():
+            for query in malicious_queries:
+                with self.subTest(strategy=strategy, query=query):
+                    results = search_with_strategy(
+                        self.database_path,
+                        query,
+                        strategy=strategy,
+                        limit=5,
+                    )
+                    self.assertIsInstance(results, list)
 
     def test_rejects_non_positive_limits(self):
         with self.assertRaisesRegex(ValueError, "limit"):

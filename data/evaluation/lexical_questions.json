@@ -1,0 +1,48 @@
+{
+  "datasetId": "mcwiki-bm25-lexical-v1",
+  "version": 1,
+  "description": "用于比较 SQLite FTS5 trigram BM25 查询构造策略的精确词法专项题集。",
+  "cases": [
+    {"id": "entity-creeper-alias", "category": "entity-alias", "question": "Creeper 苦力怕", "expectedSources": ["https://zh.minecraft.wiki/w/苦力怕"]},
+    {"id": "entity-redstone-comparator", "category": "entity-alias", "question": "红石比较器", "expectedSources": ["https://zh.minecraft.wiki/w/红石比较器"]},
+    {"id": "entity-ender-chest", "category": "entity-alias", "question": "末影箱 Ender Chest", "expectedSources": ["https://zh.minecraft.wiki/w/末影箱"]},
+    {"id": "entity-elytra", "category": "entity-alias", "question": "鞘翅 Elytra", "expectedSources": ["https://zh.minecraft.wiki/w/鞘翅"]},
+    {"id": "entity-piglin", "category": "entity-alias", "question": "Piglin 猪灵", "expectedSources": ["https://zh.minecraft.wiki/w/猪灵"]},
+    {"id": "entity-illager", "category": "entity-alias", "question": "灾厄村民 Illager", "expectedSources": ["https://zh.minecraft.wiki/w/灾厄村民"]},
+
+    {"id": "version-java-1-21", "category": "edition-version", "question": "Java版1.21", "expectedSources": ["https://zh.minecraft.wiki/w/Java版1.21"]},
+    {"id": "version-java-1-20-5", "category": "edition-version", "question": "Minecraft Java版1.20.5 更新", "expectedSources": ["https://zh.minecraft.wiki/w/Java版1.20.5"]},
+    {"id": "version-bedrock-1-21-0", "category": "edition-version", "question": "基岩版1.21.0", "expectedSources": ["https://zh.minecraft.wiki/w/基岩版1.21.0"]},
+    {"id": "version-bedrock-1-20-50", "category": "edition-version", "question": "Bedrock 基岩版1.20.50", "expectedSources": ["https://zh.minecraft.wiki/w/基岩版1.20.50"]},
+    {"id": "version-java-1-19-4", "category": "edition-version", "question": "Java 版 1.19.4 发布内容", "expectedSources": ["https://zh.minecraft.wiki/w/Java版1.19.4"]},
+    {"id": "version-bedrock-1-19-80", "category": "edition-version", "question": "基岩版 1.19.80 版本", "expectedSources": ["https://zh.minecraft.wiki/w/基岩版1.19.80"]},
+
+    {"id": "snapshot-23w03a", "category": "prerelease-snapshot", "question": "Java版23w03a 快照", "expectedSources": ["https://zh.minecraft.wiki/w/Java版23w03a"]},
+    {"id": "snapshot-23w31a", "category": "prerelease-snapshot", "question": "23w31a", "expectedSources": ["https://zh.minecraft.wiki/w/Java版23w31a"]},
+    {"id": "snapshot-24w14a", "category": "prerelease-snapshot", "question": "Minecraft Java 24w14a 快照", "expectedSources": ["https://zh.minecraft.wiki/w/Java版24w14a"]},
+    {"id": "prerelease-1-20-5-pre1", "category": "prerelease-snapshot", "question": "Java版1.20.5-pre1 预发布版", "expectedSources": ["https://zh.minecraft.wiki/w/Java版1.20.5-pre1"]},
+    {"id": "release-candidate-1-20-5-rc2", "category": "prerelease-snapshot", "question": "1.20.5-rc2 发布候选", "expectedSources": ["https://zh.minecraft.wiki/w/Java版1.20.5-rc2"]},
+    {"id": "release-candidate-1-21-rc1", "category": "prerelease-snapshot", "question": "Java版1.21-rc1", "expectedSources": ["https://zh.minecraft.wiki/w/Java版1.21-rc1"]},
+
+    {"id": "command-give", "category": "command-id-nbt", "question": "/give 命令", "expectedSources": ["https://zh.minecraft.wiki/w/命令/give"]},
+    {"id": "command-data", "category": "command-id-nbt", "question": "/data 命令如何使用", "expectedSources": ["https://zh.minecraft.wiki/w/命令/data"]},
+    {"id": "namespace-id", "category": "command-id-nbt", "question": "命名空间ID minecraft:stone", "expectedSources": ["https://zh.minecraft.wiki/w/命名空间ID"]},
+    {"id": "nbt-format", "category": "command-id-nbt", "question": "NBT 格式 TAG_Compound", "expectedSources": ["https://zh.minecraft.wiki/w/NBT格式"]},
+    {"id": "nbt-path", "category": "command-id-nbt", "question": "NBT路径 Inventory[{Slot:0b}]", "expectedSources": ["https://zh.minecraft.wiki/w/NBT路径"]},
+    {"id": "data-component", "category": "command-id-nbt", "question": "数据组件 minecraft:custom_name", "expectedSources": ["https://zh.minecraft.wiki/w/数据组件"]},
+
+    {"id": "number-repeater-delay", "category": "exact-number", "question": "红石中继器 1 到 4 红石刻延迟", "expectedSources": ["https://zh.minecraft.wiki/w/红石中继器"]},
+    {"id": "number-beacon-range", "category": "exact-number", "question": "信标效果范围 20 30 40 50 格", "expectedSources": ["https://zh.minecraft.wiki/w/信标"]},
+    {"id": "number-enchanting-bookshelves", "category": "exact-number", "question": "附魔台 15 个书架 30 级", "expectedSources": ["https://zh.minecraft.wiki/w/附魔台"]},
+    {"id": "number-spawner-distance", "category": "exact-number", "question": "刷怪笼玩家距离 16 格 激活", "expectedSources": ["https://zh.minecraft.wiki/w/刷怪笼"]},
+    {"id": "number-nether-portal", "category": "exact-number", "question": "下界传送门最小 4×5 最大 23×23", "expectedSources": ["https://zh.minecraft.wiki/w/下界传送门"]},
+    {"id": "number-diamond-height", "category": "exact-number", "question": "钻石矿石 Y=-59 高度", "expectedSources": ["https://zh.minecraft.wiki/w/钻石矿石"]},
+
+    {"id": "long-repeater", "category": "decorated-long-query", "question": "我刚开始玩生存模式，能不能顺便告诉我红石中继器到底有什么作用？", "expectedSources": ["https://zh.minecraft.wiki/w/红石中继器"]},
+    {"id": "long-command-block", "category": "decorated-long-query", "question": "不考虑合成配方的话，请问在创造模式里要怎样取得命令方块？", "expectedSources": ["https://zh.minecraft.wiki/w/命令方块"]},
+    {"id": "long-ender-pearl", "category": "decorated-long-query", "question": "麻烦介绍一下末影珍珠这种物品具体可以拿来做什么？", "expectedSources": ["https://zh.minecraft.wiki/w/末影珍珠"]},
+    {"id": "long-shulker-box", "category": "decorated-long-query", "question": "如果我准备长途探险，潜影盒被破坏之后是否还能保留里面的物品？", "expectedSources": ["https://zh.minecraft.wiki/w/潜影盒"]},
+    {"id": "long-ocean-monument", "category": "decorated-long-query", "question": "我在海底找到了很大的建筑，请问海底神殿里面通常会生成哪些敌对生物？", "expectedSources": ["https://zh.minecraft.wiki/w/海底神殿"]},
+    {"id": "long-iron-golem", "category": "decorated-long-query", "question": "先不讨论玩家手动搭建，铁傀儡在村庄中自然生成需要满足什么条件？", "expectedSources": ["https://zh.minecraft.wiki/w/铁傀儡"]}
+  ]
+}
