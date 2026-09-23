@@ -26,6 +26,34 @@ class RuntimeSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "MCWIKI_EVIDENCE_STRATEGY"):
             RetrievalSettings.from_env({"MCWIKI_EVIDENCE_STRATEGY": "source_cap"})
 
+    def test_query_planning_defaults_keep_the_original_question_only(self):
+        settings = RetrievalSettings.from_env({})
+
+        self.assertEqual(settings.query_strategy, "original")
+        self.assertEqual(settings.max_retrieval_queries, 2)
+        self.assertEqual(settings.query_plan_timeout, 15.0)
+
+    def test_query_planning_options_can_be_overridden(self):
+        settings = RetrievalSettings.from_env({
+            "MCWIKI_QUERY_STRATEGY": "step_back",
+            "MCWIKI_MAX_RETRIEVAL_QUERIES": "1",
+            "MCWIKI_QUERY_PLAN_TIMEOUT": "20",
+        })
+
+        self.assertEqual(settings.query_strategy, "step_back")
+        self.assertEqual(settings.max_retrieval_queries, 1)
+        self.assertEqual(settings.query_plan_timeout, 20.0)
+
+    def test_rejects_invalid_query_planning_settings(self):
+        with self.assertRaisesRegex(ValueError, "MCWIKI_QUERY_STRATEGY"):
+            RetrievalSettings.from_env({"MCWIKI_QUERY_STRATEGY": "multi_query"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_RETRIEVAL_QUERIES"):
+            RetrievalSettings.from_env({"MCWIKI_MAX_RETRIEVAL_QUERIES": "3"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_RETRIEVAL_QUERIES"):
+            RetrievalSettings.from_env({"MCWIKI_MAX_RETRIEVAL_QUERIES": "0"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_QUERY_PLAN_TIMEOUT"):
+            RetrievalSettings.from_env({"MCWIKI_QUERY_PLAN_TIMEOUT": "0"})
+
     def test_answer_service_options_can_be_overridden(self):
         settings = ServiceSettings.from_env({
             "MCWIKI_DEEPSEEK_READ_TIMEOUT": "45",

@@ -5,7 +5,6 @@ import logging
 import os
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
-from functools import partial
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
@@ -27,8 +26,10 @@ from rag_answer import (
     ModelUnavailableError,
     build_evidence,
 )
+from rag_query import OriginalQueryPlanner, QueryPlanner, build_query_planner
 from rag_retrieval.hybrid import HybridResult, HybridRetriever
 from rag_retrieval.factory import build_default_retriever as _build_default_retriever
+from rag_retrieval.multi_query import MultiQueryRetriever
 from rag_settings import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
     RetrievalSettings,
@@ -132,6 +133,7 @@ def _default_lifespan() -> Any:
         checks = _retrieval_checks(app)
         if any(value != "ok" for value in checks.values()):
             logger.error("Knowledge base is not ready at startup: %s", checks)
+        answer_settings: DeepSeekSettings | None = None
         try:
             answer_settings = DeepSeekSettings.from_env()
             app.state.answer_client = DeepSeekAnswerClient(
@@ -143,6 +145,17 @@ def _default_lifespan() -> Any:
         except AnswerConfigurationError:
             logger.warning("DeepSeek answer service is unconfigured")
             app.state.answer_client = None
+        planner = getattr(app.state, "query_planner", None) or build_query_planner(
+            settings.query_strategy,
+            settings=answer_settings,
+            http_client=deepseek_http,
+            timeout=settings.query_plan_timeout,
+            max_queries=settings.max_retrieval_queries,
+        )
+        app.state.query_retriever = MultiQueryRetriever(
+            retriever=retriever,
+            planner=planner,
+        )
         try:
             yield
         finally:
@@ -190,6 +203,7 @@ def create_app(
     *,
     retriever: HybridRetriever | None = None,
     answer_client: AnswerStreamer | None = None,
+    query_planner: QueryPlanner | None = None,
     cors_origins: Sequence[str] | None = None,
     cookie_secure: bool | None = None,
 ) -> FastAPI:
@@ -199,8 +213,14 @@ def create_app(
         lifespan=_default_lifespan() if use_default_lifespan else None,
     )
     app.state.service_settings = ServiceSettings.from_env()
+    if query_planner is not None:
+        app.state.query_planner = query_planner
     if retriever is not None:
         app.state.retriever = retriever
+        app.state.query_retriever = MultiQueryRetriever(
+            retriever=retriever,
+            planner=query_planner or OriginalQueryPlanner(),
+        )
     if answer_client is not None:
         app.state.answer_client = answer_client
 
@@ -291,6 +311,7 @@ def create_app(
         request: Request,
     ) -> Response:
         current_retriever = getattr(request.app.state, "retriever", None)
+        current_query_retriever = getattr(request.app.state, "query_retriever", None)
         current_answer_client = getattr(request.app.state, "answer_client", None)
         retrieval_settings: RetrievalSettings = (
             getattr(request.app.state, "retrieval_settings", None)
@@ -303,18 +324,19 @@ def create_app(
                 "回答服务尚未正确配置。",
             )
         checks = await anyio.to_thread.run_sync(_retrieval_checks, request.app)
-        if current_retriever is None or any(value != "ok" for value in checks.values()):
+        if (
+            current_retriever is None
+            or current_query_retriever is None
+            or any(value != "ok" for value in checks.values())
+        ):
             return _error_response(503, "RETRIEVAL_UNAVAILABLE", "知识库检索暂时不可用，请稍后重试。")
 
         try:
-            results = await anyio.to_thread.run_sync(
-                partial(
-                    current_retriever.search,
-                    body.question,
-                    bm25_limit=retrieval_settings.bm25_limit,
-                    semantic_limit=retrieval_settings.semantic_limit,
-                    limit=retrieval_settings.evidence_limit,
-                )
+            results = await current_query_retriever.search(
+                body.question,
+                bm25_limit=retrieval_settings.bm25_limit,
+                semantic_limit=retrieval_settings.semantic_limit,
+                limit=retrieval_settings.evidence_limit,
             )
         except Exception:
             logger.exception("Answer retrieval failed")

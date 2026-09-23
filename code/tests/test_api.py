@@ -11,8 +11,9 @@ from fastapi.testclient import TestClient
 
 from rag_answer import AnswerConfigurationError, AnswerEvidence, ModelUnavailableError
 from rag_api import create_app
+from rag_query import QueryPlan, build_query_plan
 from rag_retrieval.hybrid import HybridResult
-from rag_settings import RetrievalSettings
+from rag_settings import RetrievalSettings, STEP_BACK_QUERY_STRATEGY
 
 
 class FakeHybridRetriever:
@@ -63,6 +64,59 @@ class FakeAnswerClient:
             yield chunk
         if self.error is not None:
             raise self.error
+
+
+class FakeQueryPlanner:
+    def __init__(self, candidates=(), *, error=None):
+        self.calls = []
+        self.candidates = list(candidates)
+        self.error = error
+
+    async def plan(self, question: str) -> QueryPlan:
+        self.calls.append(question)
+        if self.error is not None:
+            raise self.error
+        return build_query_plan(
+            question,
+            self.candidates,
+            strategy=STEP_BACK_QUERY_STRATEGY,
+        )
+
+
+class RecordingRetriever:
+    """Retriever stub returning a scripted ranking per query."""
+
+    def __init__(self, rankings=None, error=None):
+        self.calls = []
+        self.rankings = rankings or {}
+        self.error = error
+
+    def search(self, query, *, bm25_limit, semantic_limit, limit):
+        self.calls.append(
+            {
+                "query": query,
+                "bm25_limit": bm25_limit,
+                "semantic_limit": semantic_limit,
+                "limit": limit,
+            }
+        )
+        if self.error is not None:
+            raise self.error
+        return self.rankings.get(query, [])[:limit]
+
+
+def stub_result(chunk_id, *, text=None, document_id=None, chunk_index=None):
+    return HybridResult(
+        chunk_id=chunk_id,
+        title=f"标题 {chunk_id}",
+        text=text or f"{chunk_id} 的正文",
+        source=f"https://example.test/{chunk_id}",
+        score=0.03,
+        bm25_rank=1,
+        semantic_rank=1,
+        document_id=document_id,
+        chunk_index=chunk_index,
+    )
 
 
 def parse_sse(body: str):
@@ -378,6 +432,187 @@ class AnswerApiTests(unittest.TestCase):
         self.assertEqual(
             response.headers["access-control-allow-credentials"],
             "true",
+        )
+
+
+class StepBackAnswerApiTests(unittest.TestCase):
+    question = "红石中继器有什么作用？"
+    abstract_question = "红石信号的传输机制是什么"
+
+    def post_answer(self, client, question=None):
+        return client.post(
+            "/answers",
+            json={"question": self.question if question is None else question},
+        )
+
+    def sources_of(self, response):
+        return next(
+            data for event, data in parse_sse(response.text) if event == "sources"
+        )
+
+    def test_answers_retrieves_once_with_the_original_question_by_default(self):
+        retriever = RecordingRetriever({self.question: [stub_result("original")]})
+        answer_client = FakeAnswerClient()
+
+        response = self.post_answer(
+            TestClient(create_app(retriever=retriever, answer_client=answer_client))
+        )
+
+        self.assertEqual(
+            [call["query"] for call in retriever.calls],
+            [self.question],
+        )
+        self.assertEqual(
+            [call["limit"] for call in retriever.calls],
+            [RetrievalSettings().evidence_limit],
+        )
+        self.assertEqual(
+            [item["chunkId"] for item in self.sources_of(response)["items"]],
+            ["original"],
+        )
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+
+    def test_step_back_plan_runs_both_queries_and_merges_the_sources(self):
+        retriever = RecordingRetriever(
+            {
+                self.question: [stub_result("shared"), stub_result("only-original")],
+                self.abstract_question: [
+                    stub_result("only-step-back"),
+                    stub_result("shared"),
+                ],
+            }
+        )
+        planner = FakeQueryPlanner([self.abstract_question])
+        answer_client = FakeAnswerClient()
+        client = TestClient(
+            create_app(
+                retriever=retriever,
+                answer_client=answer_client,
+                query_planner=planner,
+            )
+        )
+
+        response = self.post_answer(client, f"  {self.question}  ")
+
+        self.assertEqual(
+            [call["query"] for call in retriever.calls],
+            [self.question, self.abstract_question],
+        )
+        self.assertEqual(planner.calls, [self.question])
+        self.assertEqual(
+            [item["chunkId"] for item in self.sources_of(response)["items"]],
+            ["shared", "only-step-back", "only-original"],
+        )
+        self.assertEqual(
+            [item.chunk_id for item in answer_client.calls[0]["evidence"]],
+            ["shared", "only-step-back", "only-original"],
+        )
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+
+    def test_fused_neighbours_are_merged_into_one_evidence_item(self):
+        retriever = RecordingRetriever(
+            {
+                self.question: [
+                    stub_result(
+                        "chunk-0",
+                        text="红石中继器可以延迟信号",
+                        document_id="doc",
+                        chunk_index=0,
+                    )
+                ],
+                self.abstract_question: [
+                    stub_result(
+                        "chunk-1",
+                        text="延迟信号并增强信号强度",
+                        document_id="doc",
+                        chunk_index=1,
+                    )
+                ],
+            }
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            bm25_path = Path(directory) / "bm25.db"
+            bm25_path.touch()
+            app = create_app(
+                retriever=retriever,
+                answer_client=FakeAnswerClient(),
+                query_planner=FakeQueryPlanner([self.abstract_question]),
+            )
+            app.state.retrieval_settings = RetrievalSettings(bm25_path=bm25_path)
+            app.state.qdrant = SimpleNamespace(
+                get_collection=lambda name: SimpleNamespace(
+                    config=SimpleNamespace(
+                        params=SimpleNamespace(
+                            vectors=SimpleNamespace(size=RetrievalSettings().vector_size)
+                        )
+                    ),
+                    status="green",
+                )
+            )
+
+            response = self.post_answer(TestClient(app))
+
+        items = self.sources_of(response)["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["chunkId"], "chunk-0")
+        self.assertEqual(items[0]["componentChunkIds"], ["chunk-0", "chunk-1"])
+
+    def test_planning_failure_answers_with_the_original_question_only(self):
+        retriever = RecordingRetriever({self.question: [stub_result("original")]})
+        planner = FakeQueryPlanner(error=RuntimeError("planner endpoint down"))
+
+        response = self.post_answer(
+            TestClient(
+                create_app(
+                    retriever=retriever,
+                    answer_client=FakeAnswerClient(),
+                    query_planner=planner,
+                )
+            )
+        )
+
+        self.assertEqual([call["query"] for call in retriever.calls], [self.question])
+        self.assertEqual(
+            [item["chunkId"] for item in self.sources_of(response)["items"]],
+            ["original"],
+        )
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+
+    def test_step_back_retrieval_failure_keeps_the_stable_json_error(self):
+        retriever = RecordingRetriever(error=RuntimeError("local path"))
+        client = TestClient(
+            create_app(
+                retriever=retriever,
+                answer_client=FakeAnswerClient(),
+                query_planner=FakeQueryPlanner([self.abstract_question]),
+            )
+        )
+
+        response = self.post_answer(client)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["error"]["code"], "RETRIEVAL_UNAVAILABLE")
+        self.assertNotIn("local path", response.text)
+
+    def test_search_stays_a_single_query_endpoint(self):
+        retriever = RecordingRetriever({self.question: [stub_result("original")]})
+        planner = FakeQueryPlanner([self.abstract_question])
+        client = TestClient(
+            create_app(
+                retriever=retriever,
+                answer_client=FakeAnswerClient(),
+                query_planner=planner,
+            )
+        )
+
+        response = client.post("/search", json={"query": self.question})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(planner.calls, [])
+        self.assertEqual([call["query"] for call in retriever.calls], [self.question])
+        self.assertEqual(
+            [item["chunkId"] for item in response.json()["results"]],
+            ["original"],
         )
 
 

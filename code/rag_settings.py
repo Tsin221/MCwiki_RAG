@@ -20,11 +20,39 @@ DEFAULT_DEEPSEEK_READ_TIMEOUT = 90.0
 DEFAULT_COOKIE_MAX_AGE = 15_552_000
 DEFAULT_ANSWER_TEMPERATURE = 0.2
 DEFAULT_ANSWER_THINKING_TYPE = "disabled"
+ORIGINAL_QUERY_STRATEGY = "original"
+STEP_BACK_QUERY_STRATEGY = "step_back"
+SUPPORTED_QUERY_STRATEGIES = (ORIGINAL_QUERY_STRATEGY, STEP_BACK_QUERY_STRATEGY)
+DEFAULT_QUERY_STRATEGY = ORIGINAL_QUERY_STRATEGY
+MIN_RETRIEVAL_QUERIES = 1
+MAX_RETRIEVAL_QUERIES = 2
+DEFAULT_QUERY_PLAN_TIMEOUT = 15.0
 INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
 
 
 def _positive_int(values: Mapping[str, str], name: str, default: int) -> int:
     value = int(values.get(name, str(default)))
+    if value <= 0:
+        raise ValueError(f"{name} must be positive")
+    return value
+
+
+def _bounded_int(
+    values: Mapping[str, str],
+    name: str,
+    default: int,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    value = int(values.get(name, str(default)))
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
+def _positive_float(values: Mapping[str, str], name: str, default: float) -> float:
+    value = float(values.get(name, str(default)))
     if value <= 0:
         raise ValueError(f"{name} must be positive")
     return value
@@ -42,6 +70,9 @@ class RetrievalSettings:
     evidence_limit: int = DEFAULT_EVIDENCE_LIMIT
     max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS
     evidence_strategy: str = DEFAULT_EVIDENCE_STRATEGY
+    query_strategy: str = DEFAULT_QUERY_STRATEGY
+    max_retrieval_queries: int = MAX_RETRIEVAL_QUERIES
+    query_plan_timeout: float = DEFAULT_QUERY_PLAN_TIMEOUT
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> RetrievalSettings:
@@ -55,6 +86,11 @@ class RetrievalSettings:
             "adjacent_merge",
         }:
             raise ValueError("MCWIKI_EVIDENCE_STRATEGY is invalid")
+        query_strategy = values.get(
+            "MCWIKI_QUERY_STRATEGY", DEFAULT_QUERY_STRATEGY
+        ).strip()
+        if query_strategy not in SUPPORTED_QUERY_STRATEGIES:
+            raise ValueError("MCWIKI_QUERY_STRATEGY is invalid")
         return cls(
             qdrant_url=values.get("MCWIKI_QDRANT_URL", DEFAULT_QDRANT_URL).strip(),
             collection=values.get("MCWIKI_QDRANT_COLLECTION", DEFAULT_COLLECTION).strip(),
@@ -66,6 +102,17 @@ class RetrievalSettings:
             evidence_limit=_positive_int(values, "MCWIKI_EVIDENCE_LIMIT", DEFAULT_EVIDENCE_LIMIT),
             max_context_chars=_positive_int(values, "MCWIKI_CONTEXT_BUDGET", DEFAULT_MAX_CONTEXT_CHARS),
             evidence_strategy=evidence_strategy,
+            query_strategy=query_strategy,
+            max_retrieval_queries=_bounded_int(
+                values,
+                "MCWIKI_MAX_RETRIEVAL_QUERIES",
+                MAX_RETRIEVAL_QUERIES,
+                minimum=MIN_RETRIEVAL_QUERIES,
+                maximum=MAX_RETRIEVAL_QUERIES,
+            ),
+            query_plan_timeout=_positive_float(
+                values, "MCWIKI_QUERY_PLAN_TIMEOUT", DEFAULT_QUERY_PLAN_TIMEOUT
+            ),
         )
 
 
