@@ -1,0 +1,294 @@
+{
+  "schema_version": 2,
+  "dataset_id": "mcwiki-rag-evaluation-v2-2026-09-23",
+  "cases": [
+    {
+      "id": "comparator-subtract-mode", "question": "红石比较器切换到减法模式后怎样计算输出信号？", "kind": "answerable", "category": "single_fact",
+      "facets": ["减法模式"], "expected_answer_points": [{"id": "subtraction-rule", "description": "说明输出为后端输入减去较强侧面输入，并且不低于零"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E7%BA%A2%E7%9F%B3%E6%AF%94%E8%BE%83%E5%99%A8"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E7%BA%A2%E7%9F%B3%E6%AF%94%E8%BE%83%E5%99%A8"], "relevant_chunk_ids": ["d943e9f376d0da4c7208d5ef"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "beacon-needs-clear-sky", "question": "信标上方被实心方块挡住时还能激活吗？", "kind": "answerable", "category": "single_fact",
+      "facets": ["天空通路"], "expected_answer_points": [{"id": "clear-column", "description": "说明信标上方到建筑高度限制之间不能被普通完全固体渲染方块遮挡"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E4%BF%A1%E6%A0%87"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E4%BF%A1%E6%A0%87"], "relevant_chunk_ids": ["293bc6ff4e4201e368206383"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "bee-pollination-purpose", "question": "蜜蜂采集花粉后会给附近的农作物带来什么效果？", "kind": "answerable", "category": "single_fact",
+      "facets": ["授粉"], "expected_answer_points": [{"id": "crop-growth", "description": "说明带花粉蜜蜂飞过作物时可推进作物生长"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E8%9C%9C%E8%9C%82"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E8%9C%9C%E8%9C%82"], "relevant_chunk_ids": ["e6c7778a70696e5a8a854e84"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "campfire-hay-smoke", "question": "怎样让营火的烟柱升得更高？", "kind": "answerable", "category": "single_fact",
+      "facets": ["烟柱高度"], "expected_answer_points": [{"id": "hay-bale", "description": "说明在营火下放置干草块可产生更高烟柱"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E8%90%A5%E7%81%AB"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E8%90%A5%E7%81%AB"], "relevant_chunk_ids": ["9ac097459de468a83e2ba677"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "scaffolding-bottom-break", "question": "破坏脚手架结构最底部的一格会发生什么？", "kind": "answerable", "category": "single_fact",
+      "facets": ["连锁破坏"], "expected_answer_points": [{"id": "collapse", "description": "说明失去支撑的上方脚手架会依次掉落或破坏"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E8%84%9A%E6%89%8B%E6%9E%B6"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E8%84%9A%E6%89%8B%E6%9E%B6"], "relevant_chunk_ids": ["ab021df0ba3e9c33a70ab43c"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "ender-chest-player-storage", "question": "两名玩家打开同一个末影箱时会看到同一批物品吗？", "kind": "answerable", "category": "single_fact",
+      "facets": ["私人存储"], "expected_answer_points": [{"id": "per-player", "description": "说明末影箱内容按玩家独立保存，不会共享"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%9C%AB%E5%BD%B1%E7%AE%B1"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%9C%AB%E5%BD%B1%E7%AE%B1"], "relevant_chunk_ids": ["83235f4e461dd146dea713d9"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "grindstone-curse-retention", "question": "砂轮能把物品上的诅咒魔咒也移除吗？", "kind": "answerable", "category": "single_fact",
+      "facets": ["除魔"], "expected_answer_points": [{"id": "curse-remains", "description": "说明砂轮移除普通魔咒但保留诅咒"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E7%A0%82%E8%BD%AE"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E7%A0%82%E8%BD%AE"], "relevant_chunk_ids": ["bbc20cfb26bf01d129e61e6f"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "turtle-scute-growth", "question": "海龟鳞甲是杀死幼年海龟获得，还是幼年海龟长大时获得？", "kind": "answerable", "category": "single_fact",
+      "facets": ["海龟鳞甲"], "expected_answer_points": [{"id": "growth-drop", "description": "说明幼年海龟长大时掉落海龟鳞甲，杀死幼体不会掉落"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%B5%B7%E9%BE%9F"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%B5%B7%E9%BE%9F"], "relevant_chunk_ids": ["fd1a4f8a5332f91dc1c323af"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+
+    {
+      "id": "lightning-rod-attraction-range", "question": "避雷针在Java版和基岩版分别能吸引多大范围内的闪电？", "kind": "answerable", "category": "precise_value",
+      "facets": ["Java版范围", "基岩版范围"], "expected_answer_points": [{"id": "java-range", "description": "给出Java版半径128格"}, {"id": "bedrock-range", "description": "给出基岩版64×64×64格范围"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%81%BF%E9%9B%B7%E9%92%88"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%81%BF%E9%9B%B7%E9%92%88"], "relevant_chunk_ids": ["809a87f0666d9397037c1881"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate", "tags": ["edition_difference"]
+    },
+    {
+      "id": "fishing-base-wait-time", "question": "不考虑魔咒和天气时，浮漂通常要等待多少秒才会有鱼接近？", "kind": "answerable", "category": "precise_value",
+      "facets": ["等待时间"], "expected_answer_points": [{"id": "wait-seconds", "description": "给出基础等待时间范围并说明会受条件修正"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%92%93%E9%B1%BC"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%92%93%E9%B1%BC"], "relevant_chunk_ids": ["798e192808a45bf1f9c01f54"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "bed-explosion-power", "question": "在不能睡觉的维度使用床时，爆炸威力是多少？", "kind": "answerable", "category": "precise_value",
+      "facets": ["爆炸威力"], "expected_answer_points": [{"id": "power", "description": "给出床爆炸的爆炸威力数值"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E5%BA%8A"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E5%BA%8A"], "relevant_chunk_ids": ["1513e8a4d14785f7925cce0e"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "respawn-anchor-max-charges", "question": "重生锚最多能储存几次重生充能？", "kind": "answerable", "category": "precise_value",
+      "facets": ["最大充能"], "expected_answer_points": [{"id": "four-charges", "description": "说明最多储存4次充能"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%87%8D%E7%94%9F%E9%94%9A"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%87%8D%E7%94%9F%E9%94%9A"], "relevant_chunk_ids": ["2669f054506517a901017826"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "conduit-frame-block-count", "question": "潮涌核心要达到完整效果，框架需要多少个有效方块？", "kind": "answerable", "category": "precise_value",
+      "facets": ["完整框架"], "expected_answer_points": [{"id": "forty-two", "description": "给出完整框架所需的有效方块数"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%BD%AE%E6%B6%8C%E6%A0%B8%E5%BF%83"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%BD%AE%E6%B6%8C%E6%A0%B8%E5%BF%83"], "relevant_chunk_ids": ["53524ee473c46f601c0c0939"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "anvil-too-expensive-level", "question": "生存模式下铁砧操作达到多少级经验花费会显示“过于昂贵”？", "kind": "answerable", "category": "precise_value",
+      "facets": ["经验上限"], "expected_answer_points": [{"id": "cost-threshold", "description": "说明生存模式的铁砧经验等级限制"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%93%81%E7%A0%A7"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%93%81%E7%A0%A7"], "relevant_chunk_ids": ["a2cafceaf086d7a8d334a77c"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "hopper-transfer-cooldown", "question": "漏斗成功传送一件物品后需要等待多少游戏刻才能再次传送？", "kind": "answerable", "category": "precise_value",
+      "facets": ["传输冷却"], "expected_answer_points": [{"id": "cooldown-ticks", "description": "给出漏斗传输冷却的游戏刻数"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%BC%8F%E6%96%97"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%BC%8F%E6%96%97"], "relevant_chunk_ids": ["2138fbdce18a9c14eb84f4e2"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "netherite-ingot-stack-size", "question": "下界合金锭一组最多能堆叠多少个？", "kind": "answerable", "category": "precise_value",
+      "facets": ["堆叠上限"], "expected_answer_points": [{"id": "stack-64", "description": "说明下界合金锭最大堆叠数量为64"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E4%B8%8B%E7%95%8C%E5%90%88%E9%87%91%E9%94%AD"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E4%B8%8B%E7%95%8C%E5%90%88%E9%87%91%E9%94%AD"], "relevant_chunk_ids": ["220e09f6f02dd43671e28f73"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+
+    {
+      "id": "observer-change-detector", "question": "我想让红石装置在前方方块发生变化时自动输出一个短脉冲，该用什么方块，它检测什么？", "kind": "answerable", "category": "semantic_paraphrase",
+      "facets": ["方块更新检测"], "expected_answer_points": [{"id": "observer", "description": "指出侦测器并说明它检测朝向一侧的方块更新或状态变化"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E4%BE%A6%E6%B5%8B%E5%99%A8"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E4%BE%A6%E6%B5%8B%E5%99%A8"], "relevant_chunk_ids": ["92c9ed8e4994d6bef398a053"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "elytra-start-gliding", "question": "从高处跳下后怎样展开背部装备进入滑翔，而不是一直自由落体？", "kind": "answerable", "category": "semantic_paraphrase",
+      "facets": ["开始滑翔"], "expected_answer_points": [{"id": "activate-glide", "description": "说明装备鞘翅并在空中使用跳跃操作开始滑翔"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%9E%98%E7%BF%85"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%9E%98%E7%BF%85"], "relevant_chunk_ids": ["956bf1e14696985c16d268c5"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "map-live-update", "question": "为什么墙上的地图没有显示我刚盖的新建筑，怎样让它更新？", "kind": "answerable", "category": "semantic_paraphrase",
+      "facets": ["地图更新"], "expected_answer_points": [{"id": "revisit-held", "description": "说明玩家需手持地图重新探索对应区域才能记录变化"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E5%9C%B0%E5%9B%BE"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E5%9C%B0%E5%9B%BE"], "relevant_chunk_ids": ["96bc5bd55c3b0e2c50407321"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "dripstone-fill-cauldron", "question": "怎样利用洞顶尖石头把上方液体慢慢收集到炼药锅里？", "kind": "answerable", "category": "semantic_paraphrase",
+      "facets": ["滴水收集"], "expected_answer_points": [{"id": "stalactite-setup", "description": "说明用倒挂滴水石锥、上方液体源和下方炼药锅组成装置"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%BB%B4%E6%B0%B4%E7%9F%B3%E9%94%A5"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%BB%B4%E6%B0%B4%E7%9F%B3%E9%94%A5"], "relevant_chunk_ids": ["b956902c35ec4f8ae8e1cdba"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "powder-snow-walk", "question": "穿什么装备能站在会让人陷下去的雪方块上？", "kind": "answerable", "category": "semantic_paraphrase",
+      "facets": ["细雪行走"], "expected_answer_points": [{"id": "leather-boots", "description": "指出穿皮革靴子可以在细雪上行走"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E7%BB%86%E9%9B%AA"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E7%BB%86%E9%9B%AA"], "relevant_chunk_ids": ["2d6a113787cb595b60614dbd"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "allay-item-helper", "question": "给蓝色小精灵一个物品后，它会帮我捡哪些东西？", "kind": "answerable", "category": "semantic_paraphrase",
+      "facets": ["悦灵收集"], "expected_answer_points": [{"id": "matching-items", "description": "指出悦灵会收集与手持样品相同的掉落物"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%82%A6%E7%81%B5"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%82%A6%E7%81%B5"], "relevant_chunk_ids": ["9de3de9e34bb368e3f4f940e"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+
+    {
+      "id": "piston-push-rules", "question": "活塞一次最多能推动多少方块，哪些典型情况会让它无法推动？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["推动上限", "不可推动条件"], "expected_answer_points": [{"id": "push-limit", "description": "给出一次推动方块数量上限"}, {"id": "blocked-cases", "description": "说明不可移动方块、超出上限或无空间等限制"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%B4%BB%E5%A1%9E"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%B4%BB%E5%A1%9E"], "relevant_chunk_ids": ["338d0154e75038649976d9c7"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "villager-breeding-requirements", "question": "村民繁殖需要哪些食物、床位和意愿条件？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["食物", "有效床", "繁殖意愿"], "expected_answer_points": [{"id": "food", "description": "说明可使村民产生繁殖意愿的食物条件"}, {"id": "beds", "description": "说明需要可供幼年村民使用的有效床"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%9D%91%E6%B0%91"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%9D%91%E6%B0%91"], "relevant_chunk_ids": ["52ff2e9500940a5c65b00eef"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "raid-start-waves-reward", "question": "袭击怎样开始、由什么组成，玩家胜利后会得到什么效果？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["触发条件", "袭击波次", "胜利奖励"], "expected_answer_points": [{"id": "trigger", "description": "说明带不祥之兆进入村庄等触发机制"}, {"id": "waves", "description": "说明袭击由多波袭击者组成"}, {"id": "hero", "description": "说明胜利后获得村庄英雄效果"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E8%A2%AD%E5%87%BB"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E8%A2%AD%E5%87%BB"], "relevant_chunk_ids": ["a03dbb140d4213961241d516"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "bee-nest-safe-harvest", "question": "蜂巢达到什么状态才能采蜜，分别用什么工具取蜂蜜瓶和蜜脾，怎样避免激怒蜜蜂？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["蜂蜜等级", "采集工具", "安抚蜜蜂"], "expected_answer_points": [{"id": "honey-level", "description": "说明需达到满蜂蜜等级"}, {"id": "tools", "description": "区分玻璃瓶与剪刀的产物"}, {"id": "campfire", "description": "说明用烟雾等方式避免激怒蜜蜂"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E8%9C%82%E7%AE%B1"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E8%9C%82%E7%AE%B1", "https://zh.minecraft.wiki/w/%E8%9C%82%E5%B7%A2%EF%BC%88%E6%96%B9%E5%9D%97%EF%BC%89"], "relevant_chunk_ids": ["32b2a2abe20e1ce3cfc62383", "214a0143d916612f34e54ba2"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "turtle-breeding-home-beach", "question": "海龟用什么繁殖，怀孕海龟会去哪里产卵，幼龟长大掉什么？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["繁殖食物", "产卵地点", "成长掉落"], "expected_answer_points": [{"id": "seagrass", "description": "说明使用海草繁殖"}, {"id": "home-beach", "description": "说明返回出生海滩产卵"}, {"id": "scute", "description": "说明幼龟长大掉落海龟鳞甲"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%B5%B7%E9%BE%9F"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%B5%B7%E9%BE%9F"], "relevant_chunk_ids": ["fd1a4f8a5332f91dc1c323af"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "shulker-defense-teleport-drop", "question": "潜影贝怎样防御和攻击、什么时候会传送，被击杀可能掉什么？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["甲壳防御", "潜影弹", "传送", "掉落"], "expected_answer_points": [{"id": "shell", "description": "说明关闭甲壳时的防御"}, {"id": "projectile", "description": "说明发射潜影弹并造成飘浮"}, {"id": "drop", "description": "说明潜影壳掉落"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%BD%9C%E5%BD%B1%E8%B4%9D"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%BD%9C%E5%BD%B1%E8%B4%9D"], "relevant_chunk_ids": ["4d68cafc583bb33846c66eaf"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "warden-detection-attacks", "question": "监守者没有视力时怎样找到目标，它有哪些近战和远程攻击方式？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["振动与嗅探", "近战", "音波攻击"], "expected_answer_points": [{"id": "detection", "description": "说明通过振动、嗅探和愤怒锁定目标"}, {"id": "melee", "description": "说明近战攻击"}, {"id": "sonic-boom", "description": "说明音波远程攻击"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E7%9B%91%E5%AE%88%E8%80%85"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E7%9B%91%E5%AE%88%E8%80%85"], "relevant_chunk_ids": ["3585d9c125e718394c9de2de", "eeaa06a826ba4bb5e5c76d74"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "firework-flight-and-elytra", "question": "烟花火箭的飞行时间怎样由配方决定，又怎样在鞘翅滑翔时提供加速？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["配方火药量", "飞行时间", "鞘翅推进"], "expected_answer_points": [{"id": "gunpowder", "description": "说明火药数量影响飞行时间"}, {"id": "elytra-boost", "description": "说明滑翔时使用火箭可沿视线方向加速"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E7%83%9F%E8%8A%B1%E7%81%AB%E7%AE%AD"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E7%83%9F%E8%8A%B1%E7%81%AB%E7%AE%AD"], "relevant_chunk_ids": ["8d27a65db577595dda5ca010"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "furnace-smelting-flow", "question": "熔炉的三个槽位各放什么，燃料何时消耗，烧炼经验怎样领取？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["输入槽", "燃料槽", "产物与经验"], "expected_answer_points": [{"id": "slots", "description": "说明输入、燃料和产物槽的用途"}, {"id": "fuel", "description": "说明烧炼开始后按燃烧时间消耗燃料"}, {"id": "xp", "description": "说明从产物槽取出物品时取得累计经验"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E7%86%94%E7%82%89"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E7%86%94%E7%82%89"], "relevant_chunk_ids": ["5f5bd967573caae96a381c28"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "compass-spawn-lodestone", "question": "普通指南针和磁石指针分别指向哪里，跨维度后失效时会怎样显示？", "kind": "answerable", "category": "multi_facet",
+      "facets": ["世界出生点", "磁石绑定", "跨维度失效"], "expected_answer_points": [{"id": "spawn", "description": "说明普通指南针指向世界出生点"}, {"id": "lodestone", "description": "说明可绑定磁石并指向它"}, {"id": "invalid", "description": "说明目标不在当前维度等情况下指针随机旋转"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E6%8C%87%E5%8D%97%E9%92%88"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E6%8C%87%E5%8D%97%E9%92%88"], "relevant_chunk_ids": ["4109359a1bf332d3a13d7c98"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+
+    {
+      "id": "beacon-pyramid-effects", "question": "从一级到四级信标金字塔的基座怎样扩展，各级能提供哪些效果，如何选择并激活效果？", "kind": "answerable", "category": "cross_chunk",
+      "facets": ["金字塔层数", "效果等级", "激活支付"], "expected_answer_points": [{"id": "pyramid", "description": "说明1至4层实心矿物方块基座"}, {"id": "effects", "description": "说明层级解锁效果和四层的次级效果"}, {"id": "payment", "description": "说明在界面支付有效物品并选择效果"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E4%BF%A1%E6%A0%87"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E4%BF%A1%E6%A0%87"], "relevant_chunk_ids": ["293bc6ff4e4201e368206383", "86182dbbb63740ab543a7f09", "c7eb1e3cb991aabbc6204642"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "fishing-open-water-loot", "question": "钓鱼获得鱼、垃圾和宝藏的大致机制是什么，Java版取得宝藏还要求怎样的开放水域？", "kind": "answerable", "category": "cross_chunk",
+      "facets": ["战利品类别", "宝藏条件", "开放水域"], "expected_answer_points": [{"id": "loot-groups", "description": "区分鱼、垃圾和宝藏类别"}, {"id": "open-water", "description": "说明Java版宝藏战利品的开放水域约束"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%92%93%E9%B1%BC"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%92%93%E9%B1%BC"], "relevant_chunk_ids": ["798e192808a45bf1f9c01f54", "54ac33ccf1198856162492de", "b22ad5a10f45579a9ddd1e56"],
+      "edition": "java", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "map-scale-markers", "question": "地图怎样逐级缩放、每级覆盖多大范围，旗帜或物品展示框标记又怎样出现在地图上？", "kind": "answerable", "category": "cross_chunk",
+      "facets": ["缩放等级", "覆盖范围", "地图标记"], "expected_answer_points": [{"id": "scales", "description": "说明地图有多个缩放等级及覆盖范围变化"}, {"id": "markers", "description": "说明旗帜或展示框标记的创建与版本限制"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E5%9C%B0%E5%9B%BE"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E5%9C%B0%E5%9B%BE"], "relevant_chunk_ids": ["96bc5bd55c3b0e2c50407321", "e7aba423fe969454e6cc46d6", "f622e889812e7872c0e43134"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "enchanting-cost-bookshelves", "question": "附魔台的书架摆位怎样提高可选等级，界面显示的等级与实际消耗的经验和青金石是什么关系？", "kind": "answerable", "category": "cross_chunk",
+      "facets": ["书架摆位", "候选等级", "经验与青金石消耗"], "expected_answer_points": [{"id": "bookshelves", "description": "说明有效书架数量、间隔和阻挡要求"}, {"id": "cost", "description": "区分显示的等级门槛与实际经验等级、青金石消耗"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%99%84%E9%AD%94%E5%8F%B0"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%99%84%E9%AD%94%E5%8F%B0"], "relevant_chunk_ids": ["959b60fe10e173e2bcbad82e", "e5b5e33bc8f5243bffdfc125", "f284d117776570a02349362d"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "brewing-stand-process", "question": "从水瓶开始酿造常见药水时，酿造台的燃料、基础材料和后续改性材料分别起什么作用？", "kind": "answerable", "category": "cross_chunk",
+      "facets": ["烈焰粉燃料", "基础药水", "效果与改性"], "expected_answer_points": [{"id": "fuel", "description": "说明烈焰粉为酿造台提供燃料"}, {"id": "awkward", "description": "说明常用基础药水的制作路径"}, {"id": "modifiers", "description": "说明效果材料以及延长、增强或喷溅改性"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%85%BF%E9%80%A0%E5%8F%B0"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%85%BF%E9%80%A0%E5%8F%B0"], "relevant_chunk_ids": ["64c627b344c631fc6748e0c6", "b40dbe35f891996f345e481a", "2742d8d8f8b6bac6d779e8ea"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+    {
+      "id": "nether-portal-linking", "question": "主世界与下界传送门怎样换算目标坐标、搜索已有传送门并在找不到时创建新门？", "kind": "answerable", "category": "cross_chunk",
+      "facets": ["坐标换算", "搜索与链接", "创建位置"], "expected_answer_points": [{"id": "coordinate-scale", "description": "说明主世界与下界水平坐标的8:1换算"}, {"id": "search", "description": "说明在目标附近搜索可链接传送门"}, {"id": "creation", "description": "说明没有合适传送门时尝试创建"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E4%B8%8B%E7%95%8C%E4%BC%A0%E9%80%81%E9%97%A8"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E4%B8%8B%E7%95%8C%E4%BC%A0%E9%80%81%E9%97%A8"], "relevant_chunk_ids": ["ef8164f2866e180bfdd889da", "d82e1db87cb54aa2b9615ebd", "37036812cd2c26bc0e9c3e44"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate"
+    },
+
+    {
+      "id": "java-1-21-equivalent-sources", "question": "Java版1.21的正式名称、发布日期和主要新增内容是什么？", "kind": "answerable", "category": "edition_conflict",
+      "facets": ["正式名称", "发布日期", "主要内容"], "expected_answer_points": [{"id": "name-date", "description": "给出正式名称棘巧试炼和2024年6月13日发布日期"}, {"id": "features", "description": "概述试炼密室、旋风人、重锤等主要新增内容"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/Java%E7%89%881.21"], "acceptable_sources": ["https://zh.minecraft.wiki/w/Java%E7%89%881.21", "https://zh.minecraft.wiki/w/1.21"], "relevant_chunk_ids": ["d60cbeb82822040a117f9659", "cf98c3cede821b8412c7dfdc"],
+      "edition": "java", "version_scope": "1.21", "annotation_status": "confirmed", "tags": ["equivalent_sources"]
+    },
+    {
+      "id": "bed-dimension-behavior", "question": "床在主世界、下界和末地的行为有什么差异，哪些情况下设置出生点，哪些情况下会爆炸？", "kind": "answerable", "category": "edition_conflict",
+      "facets": ["主世界睡眠", "下界与末地爆炸"], "expected_answer_points": [{"id": "overworld", "description": "说明主世界满足条件时可睡觉并设置重生点"}, {"id": "other-dimensions", "description": "说明在下界或末地尝试使用会爆炸"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E5%BA%8A"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E5%BA%8A"], "relevant_chunk_ids": ["1513e8a4d14785f7925cce0e"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate", "tags": ["dimension_difference"]
+    },
+    {
+      "id": "lightning-rod-edition-differences", "question": "Java版和基岩版避雷针在吸引范围、可吸引条件和闪电命中反馈上有哪些差异？", "kind": "answerable", "category": "edition_conflict",
+      "facets": ["范围差异", "天气与天空条件", "命中反馈"], "expected_answer_points": [{"id": "ranges", "description": "分别给出两个版本的吸引范围"}, {"id": "conditions", "description": "区分两个版本的天空光照或接触雨水条件"}, {"id": "feedback", "description": "说明命中后的视觉和红石反馈"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E9%81%BF%E9%9B%B7%E9%92%88"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E9%81%BF%E9%9B%B7%E9%92%88"], "relevant_chunk_ids": ["809a87f0666d9397037c1881", "b50c675b2abcad5d95c4e456"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate", "tags": ["edition_difference"]
+    },
+    {
+      "id": "map-marker-edition-differences", "question": "Java版和基岩版在地图上显示玩家、旗帜和物品展示框标记的方式有哪些差异？", "kind": "answerable", "category": "edition_conflict",
+      "facets": ["玩家标记", "旗帜标记", "展示框标记"], "expected_answer_points": [{"id": "player-marker", "description": "说明玩家标记及离开范围时的表现"}, {"id": "banner-marker", "description": "说明旗帜标记的版本支持差异"}, {"id": "frame-marker", "description": "说明展示框中地图的标记行为"}],
+      "preferred_sources": ["https://zh.minecraft.wiki/w/%E5%9C%B0%E5%9B%BE"], "acceptable_sources": ["https://zh.minecraft.wiki/w/%E5%9C%B0%E5%9B%BE"], "relevant_chunk_ids": ["96bc5bd55c3b0e2c50407321", "e7aba423fe969454e6cc46d6"],
+      "edition": "all", "version_scope": "current", "annotation_status": "candidate", "tags": ["edition_difference"]
+    },
+
+    {
+      "id": "unanswerable-real-time-server", "question": "现在 Hypixel 主大厅在线玩家一共有多少人？", "kind": "unanswerable", "category": "unanswerable",
+      "facets": [], "expected_answer_points": [], "preferred_sources": [], "acceptable_sources": [], "relevant_chunk_ids": [],
+      "edition": "all", "version_scope": "current", "reason": "private_realtime_state", "annotation_status": "confirmed"
+    },
+    {
+      "id": "unanswerable-private-coordinates", "question": "我昨天退出游戏时角色站在哪个坐标？", "kind": "unanswerable", "category": "unanswerable",
+      "facets": [], "expected_answer_points": [], "preferred_sources": [], "acceptable_sources": [], "relevant_chunk_ids": [],
+      "edition": "all", "version_scope": "current", "reason": "private_realtime_state", "annotation_status": "confirmed"
+    },
+    {
+      "id": "unanswerable-future-version", "question": "Java版1.30会在2030年哪一天发布，完整更新内容是什么？", "kind": "unanswerable", "category": "unanswerable",
+      "facets": [], "expected_answer_points": [], "preferred_sources": [], "acceptable_sources": [], "relevant_chunk_ids": [],
+      "edition": "java", "version_scope": "future", "reason": "future_information", "annotation_status": "confirmed"
+    },
+    {
+      "id": "unanswerable-account-password", "question": "怎样查看另一个玩家的微软账户密码？", "kind": "unanswerable", "category": "unanswerable",
+      "facets": [], "expected_answer_points": [], "preferred_sources": [], "acceptable_sources": [], "relevant_chunk_ids": [],
+      "edition": "all", "version_scope": "current", "reason": "out_of_domain", "annotation_status": "confirmed"
+    },
+    {
+      "id": "unanswerable-weather-tomorrow", "question": "我家明天下午三点会不会下雨？", "kind": "unanswerable", "category": "unanswerable",
+      "facets": [], "expected_answer_points": [], "preferred_sources": [], "acceptable_sources": [], "relevant_chunk_ids": [],
+      "edition": "all", "version_scope": "current", "reason": "out_of_domain", "annotation_status": "confirmed"
+    },
+    {
+      "id": "unanswerable-modpack-custom-recipe", "question": "我私人整合包里的铜齿轮自定义配方是什么？", "kind": "unanswerable", "category": "unanswerable",
+      "facets": [], "expected_answer_points": [], "preferred_sources": [], "acceptable_sources": [], "relevant_chunk_ids": [],
+      "edition": "java", "version_scope": "custom", "reason": "knowledge_base_gap", "annotation_status": "confirmed"
+    }
+  ]
+}
