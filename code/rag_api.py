@@ -179,6 +179,7 @@ def _public_source(item: AnswerEvidence) -> dict[str, Any]:
     return {
         "id": item.id,
         "chunkId": item.chunk_id,
+        "componentChunkIds": list(item.component_chunk_ids),
         "title": item.title,
         "url": item.url,
         "excerpt": item.excerpt,
@@ -324,7 +325,9 @@ def create_app(
             )
 
         evidence = build_evidence(
-            results, max_context_chars=retrieval_settings.max_context_chars
+            results,
+            max_context_chars=retrieval_settings.max_context_chars,
+            strategy=retrieval_settings.evidence_strategy,
         )
 
         async def event_stream() -> AsyncIterator[str]:

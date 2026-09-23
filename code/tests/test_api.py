@@ -239,6 +239,7 @@ class AnswerApiTests(unittest.TestCase):
                             {
                                 "id": 1,
                                 "chunkId": "chunk-redstone",
+                                "componentChunkIds": ["chunk-redstone"],
                                 "title": "红石中继器",
                                 "url": "https://example.test/redstone-repeater",
                                 "excerpt": "红石中继器可以延迟红石信号。",

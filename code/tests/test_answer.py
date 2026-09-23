@@ -21,6 +21,8 @@ def hybrid_result(
     title: str = "红石中继器",
     text: str = "红石中继器可以延迟并增强红石信号。",
     source: str = "https://zh.minecraft.wiki/w/红石中继器",
+    document_id: str | None = None,
+    chunk_index: int | None = None,
 ) -> HybridResult:
     return HybridResult(
         chunk_id=chunk_id,
@@ -30,6 +32,8 @@ def hybrid_result(
         score=0.032,
         bm25_rank=1,
         semantic_rank=2,
+        document_id=document_id,
+        chunk_index=chunk_index,
     )
 
 
@@ -62,6 +66,32 @@ class BuildEvidenceTests(unittest.TestCase):
 
         self.assertEqual(len(evidence), 1)
         self.assertLessEqual(len(evidence[0].text), 100)
+
+    def test_uses_configured_adjacent_merge_and_preserves_component_ids(self):
+        results = [
+            hybrid_result(
+                "first",
+                text="前文重复结尾",
+                document_id="doc",
+                chunk_index=0,
+            ),
+            hybrid_result(
+                "second",
+                text="重复结尾以及后文",
+                document_id="doc",
+                chunk_index=1,
+            ),
+        ]
+
+        evidence = build_evidence(
+            results,
+            max_context_chars=1_000,
+            strategy="adjacent_merge",
+            min_merge_overlap_chars=4,
+        )
+
+        self.assertEqual(len(evidence), 1)
+        self.assertEqual(evidence[0].component_chunk_ids, ("first", "second"))
 
 
 class DeepSeekSettingsTests(unittest.TestCase):

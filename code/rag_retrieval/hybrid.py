@@ -20,6 +20,8 @@ class HybridResult:
     score: float
     bm25_rank: int | None
     semantic_rank: int | None
+    document_id: str | None = None
+    chunk_index: int | None = None
 
 
 @dataclass(slots=True)
@@ -87,6 +89,8 @@ def fuse_rrf(
             score=candidate.score,
             bm25_rank=candidate.bm25_rank,
             semantic_rank=candidate.semantic_rank,
+            document_id=candidate.result.document_id,
+            chunk_index=candidate.result.chunk_index,
         )
         for candidate in ordered[:limit]
     ]

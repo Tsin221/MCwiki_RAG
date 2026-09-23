@@ -35,6 +35,7 @@ class SemanticRetrieverTests(unittest.TestCase):
                         "title": "红石中继器",
                         "text": "红石中继器可以延迟红石信号。",
                         "source": "https://example.test/redstone-repeater",
+                        "metadata": {"document_id": "doc-redstone", "chunk_index": 3},
                     },
                 )
             ]
@@ -56,6 +57,8 @@ class SemanticRetrieverTests(unittest.TestCase):
             "https://example.test/redstone-repeater",
         )
         self.assertEqual(results[0].score, 0.91)
+        self.assertEqual(results[0].document_id, "doc-redstone")
+        self.assertEqual(results[0].chunk_index, 3)
         self.assertEqual(
             qdrant.queries,
             [

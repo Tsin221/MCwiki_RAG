@@ -15,6 +15,7 @@ DEFAULT_BM25_LIMIT = 20
 DEFAULT_SEMANTIC_LIMIT = 20
 DEFAULT_EVIDENCE_LIMIT = 8
 DEFAULT_MAX_CONTEXT_CHARS = 12_000
+DEFAULT_EVIDENCE_STRATEGY = "adjacent_merge"
 DEFAULT_DEEPSEEK_READ_TIMEOUT = 90.0
 DEFAULT_COOKIE_MAX_AGE = 15_552_000
 DEFAULT_ANSWER_TEMPERATURE = 0.2
@@ -40,11 +41,20 @@ class RetrievalSettings:
     semantic_limit: int = DEFAULT_SEMANTIC_LIMIT
     evidence_limit: int = DEFAULT_EVIDENCE_LIMIT
     max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS
+    evidence_strategy: str = DEFAULT_EVIDENCE_STRATEGY
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> RetrievalSettings:
         values = os.environ if environ is None else environ
         vector_size = _positive_int(values, "MCWIKI_VECTOR_SIZE", DEFAULT_VECTOR_SIZE)
+        evidence_strategy = values.get(
+            "MCWIKI_EVIDENCE_STRATEGY", DEFAULT_EVIDENCE_STRATEGY
+        ).strip()
+        if evidence_strategy not in {
+            "ranked_first",
+            "adjacent_merge",
+        }:
+            raise ValueError("MCWIKI_EVIDENCE_STRATEGY is invalid")
         return cls(
             qdrant_url=values.get("MCWIKI_QDRANT_URL", DEFAULT_QDRANT_URL).strip(),
             collection=values.get("MCWIKI_QDRANT_COLLECTION", DEFAULT_COLLECTION).strip(),
@@ -55,6 +65,7 @@ class RetrievalSettings:
             semantic_limit=_positive_int(values, "MCWIKI_SEMANTIC_LIMIT", DEFAULT_SEMANTIC_LIMIT),
             evidence_limit=_positive_int(values, "MCWIKI_EVIDENCE_LIMIT", DEFAULT_EVIDENCE_LIMIT),
             max_context_chars=_positive_int(values, "MCWIKI_CONTEXT_BUDGET", DEFAULT_MAX_CONTEXT_CHARS),
+            evidence_strategy=evidence_strategy,
         )
 
 

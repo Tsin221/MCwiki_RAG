@@ -10,15 +10,21 @@ class RuntimeSettingsTests(unittest.TestCase):
             "MCWIKI_SEMANTIC_LIMIT": "14",
             "MCWIKI_EVIDENCE_LIMIT": "6",
             "MCWIKI_CONTEXT_BUDGET": "9000",
+            "MCWIKI_EVIDENCE_STRATEGY": "ranked_first",
         })
         self.assertEqual((settings.bm25_limit, settings.semantic_limit, settings.evidence_limit), (12, 14, 6))
         self.assertEqual(settings.max_context_chars, 9000)
+        self.assertEqual(settings.evidence_strategy, "ranked_first")
 
     def test_rejects_invalid_retrieval_and_service_limits(self):
         with self.assertRaisesRegex(ValueError, "MCWIKI_BM25_LIMIT"):
             RetrievalSettings.from_env({"MCWIKI_BM25_LIMIT": "0"})
         with self.assertRaisesRegex(ValueError, "invalid answer service"):
             ServiceSettings.from_env({"MCWIKI_ANSWER_TEMPERATURE": "3"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_EVIDENCE_STRATEGY"):
+            RetrievalSettings.from_env({"MCWIKI_EVIDENCE_STRATEGY": "unknown"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_EVIDENCE_STRATEGY"):
+            RetrievalSettings.from_env({"MCWIKI_EVIDENCE_STRATEGY": "source_cap"})
 
     def test_answer_service_options_can_be_overridden(self):
         settings = ServiceSettings.from_env({

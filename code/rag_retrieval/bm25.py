@@ -77,6 +77,8 @@ class BM25Result:
     text: str
     source: str
     score: float
+    document_id: str | None = None
+    chunk_index: int | None = None
 
 
 def _iter_chunks(path: Path) -> Iterator[tuple[int, Mapping[str, Any]]]:
@@ -244,6 +246,8 @@ def search_bm25(
                     chunks.title,
                     chunks.text,
                     chunks.source,
+                    json_extract(chunks.metadata, '$.document_id') AS document_id,
+                    json_extract(chunks.metadata, '$.chunk_index') AS chunk_index,
                     chunks.rowid,
                     -bm25(chunks_fts, 5.0, 1.0) AS lexical_score,
                     CASE
@@ -265,6 +269,8 @@ def search_bm25(
                 title,
                 text,
                 source,
+                document_id,
+                chunk_index,
                 lexical_score
                     + exact_title_overview
                     * (max(lexical_score) OVER () + 1.0) AS score
@@ -286,7 +292,9 @@ def search_bm25(
             title=row[1],
             text=row[2],
             source=row[3],
-            score=float(row[4]),
+            document_id=row[4],
+            chunk_index=int(row[5]) if row[5] is not None else None,
+            score=float(row[6]),
         )
         for row in rows
     ]

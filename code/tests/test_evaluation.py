@@ -140,6 +140,7 @@ class LoadEvaluationCasesTests(unittest.TestCase):
         )
         self.assertIn("systemPromptFingerprint", original)
         self.assertEqual(original["maxContextChars"], 12_000)
+        self.assertEqual(original["evidenceStrategy"], "adjacent_merge")
         self.assertEqual(original["temperature"], 0.2)
         self.assertEqual(original["thinkingType"], "disabled")
         self.assertNotIn("test-secret", json.dumps(original))

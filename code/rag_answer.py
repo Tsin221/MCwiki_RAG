@@ -83,6 +83,8 @@ def build_evidence(
     results: Sequence[HybridResult],
     *,
     max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
+    strategy: str = "ranked_first",
+    min_merge_overlap_chars: int = 20,
 ) -> list[AnswerEvidence]:
     """Select ranked, non-duplicate evidence within a conservative character budget."""
     candidates = [
@@ -91,14 +93,17 @@ def build_evidence(
             title=result.title,
             text=result.text,
             source=result.source,
+            document_id=result.document_id,
+            chunk_index=result.chunk_index,
         )
         for result in results
     ]
     return select_evidence(
         candidates,
         SelectionConfig(
-            strategy="ranked_first",
+            strategy=strategy,  # type: ignore[arg-type]
             max_context_chars=max_context_chars,
+            min_merge_overlap_chars=min_merge_overlap_chars,
         ),
     )
 

@@ -1,0 +1,20 @@
+{
+  "redstone-repeater-delay": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖1至4红石刻延迟、串联及单向传输。"},
+  "creeper-behavior": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖爆炸触发、取消条件、火药、唱片和头颅掉落。"},
+  "enchanting-table-bookshelves": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明15个书架、距离、高度和无遮挡条件。"},
+  "nether-portal-frame": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明黑曜石框架、角可省略、最小尺寸和激活方式。"},
+  "ender-dragon-defeat": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖经验、龙蛋、返回传送门和末地折跃门。"},
+  "brewing-stand-fuel": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "明确烈焰粉和20次酿造。"},
+  "iron-golem-spawning": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "区分自然、村民、前哨站和玩家建造，并说明保护对象。"},
+  "command-block-obtain": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明生存模式不能合成或正常取得，并给出创造模式与命令途径。"},
+  "java-1-21-content": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "正文证据支持主要内容；仍未引用固定题集指定的1.21消歧义页。"},
+  "diamond-ore-generation": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖生成高度、越深越多、镐等级和时运掉落。"},
+  "spawner-activation": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "明确玩家在16格范围内激活刷怪笼。"},
+  "ender-pearl-use": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖命中传送、伤害、末影螨、冷却和环境风险。"},
+  "shulker-box-storage": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "说明普通破坏保留内容物及物品实体被摧毁的例外。"},
+  "ocean-monument-mobs": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "准确列出守卫者与远古守卫者。"},
+  "illager-patrol": {"correctness": 2, "completeness": 2, "faithfulness": 2, "notes": "覆盖成员、队长及Java版和基岩版生成条件。"},
+  "future-java-1-30-content": {"abstainedReliably": true, "notes": "明确资料不足，没有把相似版本号当成1.30。"},
+  "terraria-moon-lord": {"abstainedReliably": true, "notes": "明确问题超出Minecraft证据范围。"},
+  "private-server-online-players": {"abstainedReliably": true, "notes": "没有把命令示例或协议字段误作实时在线名单。"}
+}

@@ -20,6 +20,8 @@ class SemanticResult:
     text: str
     source: str
     score: float
+    document_id: str | None = None
+    chunk_index: int | None = None
 
 
 class SemanticRetriever:
@@ -102,9 +104,26 @@ class SemanticRetriever:
                 "Qdrant result payload requires non-empty chunk_id and text"
             )
 
+        metadata = payload.get("metadata", {})
+        if not isinstance(metadata, Mapping):
+            raise ValueError("Qdrant result payload metadata must be an object")
+        document_id = metadata.get("document_id")
+        chunk_index = metadata.get("chunk_index")
+        if document_id is not None and not isinstance(document_id, str):
+            raise ValueError("Qdrant document_id must be a string")
+        if chunk_index is not None and (
+            not isinstance(chunk_index, int) or isinstance(chunk_index, bool)
+        ):
+            raise ValueError("Qdrant chunk_index must be an integer")
+
         try:
             score = float(point.score)
         except (TypeError, ValueError) as error:
             raise ValueError("Qdrant result score must be numeric") from error
 
-        return SemanticResult(score=score, **values)
+        return SemanticResult(
+            score=score,
+            document_id=document_id,
+            chunk_index=chunk_index,
+            **values,
+        )

@@ -117,6 +117,7 @@ class BM25QueryTests(_BM25Fixture, unittest.TestCase):
         self.assertEqual(results[0].title, self.chunks[0]["title"])
         self.assertEqual(results[0].text, self.chunks[0]["text"])
         self.assertEqual(results[0].source, self.chunks[0]["source"])
+        self.assertEqual(results[0].chunk_index, 0)
         self.assertGreater(results[0].score, 0)
 
     def test_supports_minecraft_terms_and_version_numbers(self):

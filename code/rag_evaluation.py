@@ -116,6 +116,7 @@ def build_evaluation_configuration(
         "semanticLimit": retrieval_settings.semantic_limit,
         "evidenceLimit": retrieval_settings.evidence_limit,
         "maxContextChars": retrieval_settings.max_context_chars,
+        "evidenceStrategy": retrieval_settings.evidence_strategy,
         "temperature": service_settings.answer_temperature,
         "thinkingType": service_settings.answer_thinking_type,
         "readTimeoutSeconds": service_settings.deepseek_read_timeout,
@@ -258,6 +259,7 @@ def _evidence_record(item: AnswerEvidence) -> dict[str, Any]:
     return {
         "id": item.id,
         "chunkId": item.chunk_id,
+        "componentChunkIds": list(item.component_chunk_ids),
         "title": item.title,
         "url": item.url,
         "text": item.text,
@@ -287,7 +289,9 @@ async def run_answer_case(
     )
     retrieval_ms = round((perf_counter() - retrieval_started) * 1_000, 2)
     evidence = build_evidence(
-        results, max_context_chars=retrieval_settings.max_context_chars
+        results,
+        max_context_chars=retrieval_settings.max_context_chars,
+        strategy=retrieval_settings.evidence_strategy,
     )
 
     generation_started = perf_counter()
