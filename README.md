@@ -220,8 +220,9 @@ BM25 查询策略对照见 [`data/evaluation/REPORT-2026-09-23-bm25-diagnostic.m
 | 文档 | 内容 |
 | --- | --- |
 | [`项目启动说明.txt`](项目启动说明.txt) | 逐步骤的本地启动、依赖服务与常见问题排查 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 系统架构、请求链路、扩展点、稳定契约与已知权衡 |
 | [`docs/specs/qa-web-mvp.md`](docs/specs/qa-web-mvp.md) | 问答 Web MVP 规格：UX、SSE 与错误契约、提示词约束、完成标准 |
-| [`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md) | 当前任务包：01 查询规划、02 精排已实现，03～05 待执行 |
+| [`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md) | 当前任务包：01 查询规划、02 精排已实现，03～05 待执行；完成情况见 [STATUS.md](docs/tasks/ragV2/STATUS.md) |
 | [`docs/ideas/agentic-rag.md`](docs/ideas/agentic-rag.md) | 暂缓实施的证据驱动 Agentic RAG 方案 |
 | [`docs/过期文档/`](docs/过期文档/README.md) | 历史文档归档（MVP 计划、项目状态、技术指南、阶段交接与评审记录） |
 
