@@ -20,6 +20,17 @@ SUPPORTED_STRATEGIES: tuple[EvidenceStrategy, ...] = (
     "redundancy_suppression",
 )
 _NON_WORD = re.compile(r"[^0-9a-z\u3400-\u9fff]+", re.IGNORECASE)
+_CJK = re.compile(r"[\u3400-\u9fff]")
+SENTENCE_ENDINGS = "。！？；"
+# Cards read the excerpt, the answer model reads the whole text, so the snippet is
+# free to leave out what a reader cannot use. A wiki table arrives as one cell per
+# line, which is why a table-heavy item looks like a run of bare values.
+TABLE_CELL_CHARS = 12
+TABLE_NOISE_SHARE = 0.4
+MIN_TABLE_LINES = 4
+MIN_DESCRIPTIVE_CELL_CHARS = 4
+# Do not end a snippet much earlier than it has to just to reach a full stop.
+SNIPPET_BOUNDARY_SHARE = 0.6
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,13 +81,59 @@ class _AssembledCandidate:
     title: str
     text: str
     source: str
+    # False when the text starts part-way through its article. An unknown position
+    # claims nothing, so a caller that does not track chunk order gets no marker.
+    starts_at_document_start: bool = True
 
 
-def _excerpt(text: str, *, max_chars: int = 220) -> str:
-    compact = " ".join(text.split())
-    if len(compact) <= max_chars:
-        return compact
-    return f"{compact[: max_chars - 1].rstrip()}…"
+def _snippet_lines(text: str) -> list[str]:
+    """The lines a card can use, with the bare cells of a flattened table dropped.
+
+    A table-heavy item is one cell per line, so it reads as a run of values such as
+    "false" or "0x1". The lines that still carry prose are the descriptive cells of
+    the same table, which is what a reader can actually use.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < MIN_TABLE_LINES:
+        return lines
+    cells = sum(1 for line in lines if len(line) < TABLE_CELL_CHARS)
+    if cells < len(lines) * TABLE_NOISE_SHARE:
+        return lines
+    descriptive = [
+        line
+        for line in lines
+        if len(line) >= MIN_DESCRIPTIVE_CELL_CHARS and _CJK.search(line)
+    ]
+    return descriptive or lines
+
+
+def _boundary_cut(body: str, limit: int) -> int:
+    """End the snippet where a sentence ends rather than in the middle of one."""
+    floor = int(limit * SNIPPET_BOUNDARY_SHARE)
+    for index in range(limit, floor - 1, -1):
+        if body[index - 1] in SENTENCE_ENDINGS:
+            return index
+    return limit
+
+
+def _excerpt(
+    text: str,
+    *,
+    max_chars: int = 220,
+    continuation: bool = False,
+) -> str:
+    """A readable snippet of one evidence item, for the source cards only.
+
+    The answer model always receives the whole text; only the card gets this. A
+    leading ellipsis marks an item that starts part-way through its article, which
+    every chunk after the first one does.
+    """
+    body = " ".join(_snippet_lines(text))
+    prefix = "…" if continuation else ""
+    if len(body) <= max_chars:
+        return f"{prefix}{body}"
+    cut = _boundary_cut(body, max_chars - 1)
+    return f"{prefix}{body[:cut].rstrip()}…"
 
 
 def _normalized_text(text: str) -> str:
@@ -114,6 +171,9 @@ def _as_assembled(candidate: EvidenceCandidate) -> _AssembledCandidate:
         title=candidate.title,
         text=candidate.text.strip(),
         source=candidate.source,
+        # Only a first chunk starts at the beginning of its article; an unknown
+        # position claims nothing.
+        starts_at_document_start=candidate.chunk_index in (None, 0),
     )
 
 
@@ -178,7 +238,8 @@ def _merge_adjacent(
         group.sort(key=lambda entry: entry[1].chunk_index or 0)
         consumed.update(group_rank for group_rank, _ in group)
 
-        text = group[0][1].text.strip()
+        head = group[0][1]
+        text = head.text.strip()
         for _, neighbor in group[1:]:
             text = _merge_text(text, neighbor.text.strip(), min_overlap)
         assembled.append(
@@ -189,6 +250,7 @@ def _merge_adjacent(
                     title=item.title,
                     text=text,
                     source=item.source,
+                    starts_at_document_start=head.chunk_index in (None, 0),
                 ),
             )
         )
@@ -243,7 +305,10 @@ def select_evidence(
                 title=item.title,
                 url=item.source,
                 text=text,
-                excerpt=_excerpt(text),
+                excerpt=_excerpt(
+                    text,
+                    continuation=not item.starts_at_document_start,
+                ),
             )
         )
         used_chars += len(text)

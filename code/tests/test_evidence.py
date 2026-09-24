@@ -133,5 +133,113 @@ class EvidenceSelectionTests(unittest.TestCase):
             )
 
 
+class EvidenceExcerptTests(unittest.TestCase):
+    """The card snippet: prose over table cells, whole sentences, marked omissions."""
+
+    def excerpt(self, text, *, chunk_index=None, source="https://example.test/page"):
+        selected = select_evidence(
+            [candidate("a", text, source=source, chunk_index=chunk_index)],
+            SelectionConfig(strategy="ranked_first", max_context_chars=9_000),
+        )
+        return selected[0]
+
+    def test_a_short_prose_item_is_shown_as_it_is(self):
+        text = "红石中继器可以延迟红石信号，并阻止信号倒流。"
+
+        item = self.excerpt(text, chunk_index=0)
+
+        self.assertEqual(item.excerpt, text)
+
+    def test_a_chunk_that_starts_mid_article_says_so(self):
+        text = "器可以延迟红石信号，并阻止信号倒流。"
+
+        item = self.excerpt(text, chunk_index=4)
+
+        self.assertEqual(item.excerpt, f"…{text}")
+
+    def test_an_unknown_position_does_not_claim_to_be_a_fragment(self):
+        text = "器可以延迟红石信号，并阻止信号倒流。"
+
+        item = self.excerpt(text)
+
+        self.assertEqual(item.excerpt, text)
+
+    def test_a_flattened_table_shows_its_descriptive_cells_only(self):
+        table = "\n".join(
+            [
+                "false",
+                "true",
+                "红石中继器处于锁存状态",
+                "powered",
+                "0x1 0x2",
+                "方块接收到了红石信号",
+            ]
+        )
+
+        item = self.excerpt(table, chunk_index=3)
+
+        self.assertEqual(item.excerpt, "…红石中继器处于锁存状态 方块接收到了红石信号")
+
+    def test_a_table_without_prose_falls_back_to_its_cells(self):
+        table = "\n".join(["false", "true", "0x1", "powered", "north"])
+
+        item = self.excerpt(table, chunk_index=2)
+
+        self.assertEqual(item.excerpt, "…false true 0x1 powered north")
+
+    def test_a_block_of_prose_keeps_its_short_lines(self):
+        prose = "第一行短句\n第二行稍长一点的句子，说明机制。\n第三行也短"
+
+        item = self.excerpt(prose, chunk_index=1)
+
+        self.assertEqual(item.excerpt, f"…{' '.join(prose.splitlines())}")
+
+    def test_a_long_snippet_ends_where_a_sentence_ends(self):
+        text = "这是一个足够长的句子。" * 30
+
+        item = self.excerpt(text, chunk_index=7)
+
+        self.assertTrue(item.excerpt.startswith("…"))
+        self.assertTrue(item.excerpt.endswith("。…"))
+        self.assertLessEqual(len(item.excerpt), 222)
+
+    def test_a_long_snippet_without_any_full_stop_is_still_cut(self):
+        text = "没有句号的连续文本" * 40
+
+        item = self.excerpt(text, chunk_index=2)
+
+        self.assertTrue(item.excerpt.endswith("…"))
+        # 219 characters of text plus the fragment and omission markers.
+        self.assertEqual(len(item.excerpt), 221)
+
+    def test_a_merged_group_is_a_fragment_only_when_it_starts_mid_article(self):
+        for chunk_index, expected in ((0, False), (3, True)):
+            with self.subTest(chunk_index=chunk_index):
+                merged = select_evidence(
+                    [
+                        candidate(
+                            "later",
+                            "重复结尾以及新事实",
+                            document_id="doc",
+                            chunk_index=chunk_index + 1,
+                        ),
+                        candidate(
+                            "earlier",
+                            "前文内容重复结尾",
+                            document_id="doc",
+                            chunk_index=chunk_index,
+                        ),
+                    ],
+                    SelectionConfig(
+                        strategy="adjacent_merge",
+                        max_context_chars=9_000,
+                        min_merge_overlap_chars=4,
+                    ),
+                )[0]
+
+                self.assertEqual(merged.component_chunk_ids, ("earlier", "later"))
+                self.assertEqual(merged.excerpt.startswith("…"), expected)
+
+
 if __name__ == "__main__":
     unittest.main()
