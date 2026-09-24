@@ -5,9 +5,9 @@
 本文件记录本目录五个任务的实现与验收状态，按 `README.md` 的「统一交接格式」组织。任务文档
 中的验收复选框尚未勾选，本文件是当前的唯一完成情况记录。
 
-核对方式：代码与 git 历史逐项比对，后端完整测试于 2026-09-24 在本分支工作区实际执行。
-任务文档中的「验收标准」逐条列在下面。任务 03 的代码与测试在分支
-`codex/ragv2-corrective` 上，核对时按该分支的工作区执行；01、02 已在 `main` 上。
+核对方式：代码与 git 历史逐项比对，后端完整测试于 2026-09-24 在提交 `e1ef515` 上实际执行。
+任务文档中的「验收标准」逐条列在下面。01～03 均已合并到 `main`：03 由分支
+`codex/ragv2-corrective` 快进合并，该分支保留但不再更新。
 
 ## 总览
 
@@ -196,8 +196,9 @@ uv run --with pytest python -m pytest -q tests/test_reranker.py tests/test_hybri
 ### 分支与提交
 
 - `c91a49d` feat: add bounded corrective retrieval with one query rewrite
+- `e1ef515` docs: record task 03 corrective retrieval status
 
-分支 `codex/ragv2-corrective`，截至本文件更新时间尚未合并到 `main`。
+分支 `codex/ragv2-corrective` 已快进合并到 `main`（`main` 上的这两个提交即为其内容）。
 
 ### 修改文件清单
 
@@ -323,8 +324,8 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 | 04 答案证据核验 | `code/rag_verification.py`、`code/tests/test_verification.py` | 均不存在 |
 | 05 Adaptive 路由 | `code/rag_router.py`、`code/rag_pipeline.py`、`code/tests/test_router.py`、`code/tests/test_pipeline.py` | 均不存在 |
 
-依赖关系为串行：04 依赖 03，05 依赖 04。任务 03 的提交在分支 `codex/ragv2-corrective` 上，
-按共同规则第 6 条，04 应从 03 已合并的 `main`（或明确基于 `c91a49d`）开工。
+依赖关系为串行：04 依赖 03（已合并），05 依赖 04。04 可直接基于当前 `main`（`e1ef515`）开工，
+按共同规则第 1 条另建分支。
 
 任务 05 另需修改 `README.md` 的最终流程与配置说明，届时本文件与根目录 README 都需同步更新。
 
@@ -339,8 +340,13 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 3. 任务文档 `01-…md`、`02-…md`、`03-…md` 的验收复选框仍是未勾选状态。本文件记录了逐条结论，
    但三份任务文档本身未更新，新读者仍会看到全空的复选框。
 4. 评测集 v2 的 48 题中仅 7 题经人工确认，若后续任务要做定量对比，标注状态会是一个限制。
-5. `docs/ARCHITECTURE.md` 记录的是 `main` 上的结构，第 2、3、4、5 节（请求链路、分层、可插拔
-   维度、降级表）在 03 合并后需要同步补上纠正检索一层，否则该文件会漏掉一个新的扩展点。
+5. `docs/ARCHITECTURE.md` 记录的是 `main` 上的结构，03 合并后它有两处过期：一是缺少纠正检索
+   这一层（第 2 节请求链路、第 3 节分层、第 4 节可插拔维度表、第 5 节降级表各需补一行），
+   二是本任务改动使该文件引用的行号偏移（`rag_api.py` 的 `create_answer` 350→405、
+   `_retrieval_checks` 106→112、`_reranker_check` 124→130、单轮检索调用 376→261
+   （已移入新的 `_collect_evidence`，239 行起）、装配点 174→180、`/search` 检索 319→379、
+   SSE 事件段 398-420→451 起；`rag_reranker.py` 的 `build_reranker` 258→264、
+   `RerankingRetriever` 272→278）。该文件按自身约定在专门的文档提交里更新，本次未改动。
 
 ## 如何更新本文件
 
