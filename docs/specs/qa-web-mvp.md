@@ -49,7 +49,7 @@ BM25 + Qdrant + RRF 混合检索获取本地知识证据，再调用 DeepSeek
 - 默认一次只处理一个进行中的问题。
 
 Three.js 的视觉范围、性能降级和验收要求见
-[`../frontend-threejs/README.md`](../frontend-threejs/README.md)。三维场景不承载聊天
+[`../过期文档/frontend-threejs/README.md`](../过期文档/frontend-threejs/README.md)。三维场景不承载聊天
 内容或核心交互。
 
 ## 4. 用户体验
