@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -110,5 +110,61 @@ describe('App', () => {
     expect(await screen.findByText('Below Y=16', { selector: 'strong' })).toBeVisible()
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
     expect(screen.queryByText(/\*\*Below Y=16\*\*/)).not.toBeInTheDocument()
+  })
+
+  it('lists a page once when several of its segments are evidence', async () => {
+    requestAnswerMock.mockImplementation(async (_question, onEvent) => {
+      onEvent({ type: 'meta', question: '酿造台用什么燃料？' })
+      onEvent({
+        type: 'sources',
+        items: [
+          {
+            id: 1,
+            chunkId: 'brewing-stand-top',
+            title: '酿造台',
+            url: 'https://zh.minecraft.wiki/w/酿造台',
+            excerpt: '酿造台使用烈焰粉作为燃料。',
+          },
+          {
+            id: 2,
+            chunkId: 'furnace',
+            title: '烧炼',
+            url: 'https://zh.minecraft.wiki/w/烧炼',
+            excerpt: '一份燃料支持 20 次酿造。',
+          },
+          {
+            id: 3,
+            chunkId: 'brewing-stand-data',
+            title: '酿造台',
+            url: 'https://zh.minecraft.wiki/w/酿造台',
+            excerpt: '酿造台的能量影响可执行配方的次数。',
+          },
+        ],
+      })
+      onEvent({ type: 'delta', text: '酿造台使用烈焰粉。[1]' })
+      onEvent({ type: 'done', status: 'answered' })
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(screen.getByRole('textbox'), '酿造台用什么燃料？')
+    await user.click(screen.getByRole('button', { name: '发送问题' }))
+
+    expect(await screen.findByText('3 条证据 · 2 个页面')).toBeVisible()
+    const sources = screen.getByRole('region', { name: '参考来源' })
+    expect(within(sources).getAllByRole('link')).toHaveLength(2)
+    expect(within(sources).getByRole('link', { name: /酿造台/ })).toHaveAttribute(
+      'href',
+      'https://zh.minecraft.wiki/w/酿造台',
+    )
+    // Both segments of the page stay visible, each with its own citation number.
+    expect(within(sources).getByText('2 段')).toBeVisible()
+    expect(within(sources).getByText('酿造台使用烈焰粉作为燃料。')).toBeVisible()
+    expect(
+      within(sources).getByText('酿造台的能量影响可执行配方的次数。'),
+    ).toBeVisible()
+    expect(within(sources).getByText('[1]')).toBeVisible()
+    expect(within(sources).getByText('[3]')).toBeVisible()
+    expect(within(sources).getByText('[2]')).toBeVisible()
   })
 })

@@ -7,6 +7,7 @@ import { SourceCard } from './components/chat/SourceCard'
 import { SceneLayer } from './components/scene/SceneLayer'
 import { useAnswerStream } from './hooks/useAnswerStream'
 import { getReadiness } from './lib/api'
+import { groupSources } from './lib/sources'
 
 const EXAMPLE_QUESTIONS = [
   '红石中继器有什么作用？',
@@ -71,6 +72,8 @@ export default function App() {
     void answer.submit(question)
     setInput('')
   }
+
+  const sourceGroups = groupSources(answer.sources)
 
   return (
     <div className="app-shell" data-phase={answer.phase}>
@@ -164,11 +167,16 @@ export default function App() {
               <section className="sources" aria-labelledby="sources-title">
                 <div className="section-heading">
                   <h2 id="sources-title">参考来源</h2>
-                  <span>{answer.sources.length} 条证据</span>
+                  <span>
+                    {answer.sources.length} 条证据
+                    {sourceGroups.length < answer.sources.length
+                      ? ` · ${sourceGroups.length} 个页面`
+                      : ''}
+                  </span>
                 </div>
                 <ol>
-                  {answer.sources.map((source) => (
-                    <SourceCard key={source.id} source={source} />
+                  {sourceGroups.map((group) => (
+                    <SourceCard key={group.segments[0].id} group={group} />
                   ))}
                 </ol>
               </section>
