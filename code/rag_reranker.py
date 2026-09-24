@@ -78,6 +78,12 @@ def _validate_limit(limit: int) -> None:
         raise ValueError("limit must be greater than zero")
 
 
+def _validate_limits(**limits: int) -> None:
+    for name, value in limits.items():
+        if value <= 0:
+            raise ValueError(f"{name} must be greater than zero")
+
+
 def _unique_by_chunk_id(candidates: Sequence[HybridResult]) -> list[HybridResult]:
     """Keep the first occurrence of each chunk, with its own metadata."""
     seen: set[str] = set()
@@ -288,6 +294,27 @@ class RerankingRetriever:
     def reranker(self) -> Reranker:
         return self._reranker
 
+    async def recall(
+        self,
+        question: str,
+        *,
+        bm25_limit: int,
+        semantic_limit: int,
+        limit: int,
+    ) -> list[HybridResult]:
+        """Recall a candidate pool without reranking it.
+
+        A later stage that merges several rounds of candidates recalls each round
+        here and hands the merged pool to :meth:`rerank` once.
+        """
+        _validate_limits(bm25_limit=bm25_limit, semantic_limit=semantic_limit, limit=limit)
+        return await self._retriever.search(
+            question,
+            bm25_limit=bm25_limit,
+            semantic_limit=semantic_limit,
+            limit=limit,
+        )
+
     async def rerank(
         self,
         question: str,
@@ -309,17 +336,14 @@ class RerankingRetriever:
         candidate_limit: int,
         limit: int,
     ) -> list[HybridResult]:
-        for name, value in (
-            ("bm25_limit", bm25_limit),
-            ("semantic_limit", semantic_limit),
-            ("candidate_limit", candidate_limit),
-            ("limit", limit),
-        ):
-            if value <= 0:
-                raise ValueError(f"{name} must be greater than zero")
-
+        _validate_limits(
+            bm25_limit=bm25_limit,
+            semantic_limit=semantic_limit,
+            candidate_limit=candidate_limit,
+            limit=limit,
+        )
         pool_limit = max(candidate_limit, limit)
-        candidates = await self._retriever.search(
+        candidates = await self.recall(
             question,
             bm25_limit=bm25_limit,
             semantic_limit=semantic_limit,

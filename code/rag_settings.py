@@ -34,6 +34,14 @@ SUPPORTED_RERANKERS: tuple[str, ...] = (NOOP_RERANKER, CROSS_ENCODER_RERANKER)
 DEFAULT_RERANKER = NOOP_RERANKER
 DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-base"
 DEFAULT_CANDIDATE_LIMIT = 20
+CORRECTIVE_DISABLED = "none"
+CORRECTIVE_ENABLED = "corrective"
+SUPPORTED_CORRECTIVE: tuple[str, ...] = (CORRECTIVE_DISABLED, CORRECTIVE_ENABLED)
+DEFAULT_CORRECTIVE = CORRECTIVE_DISABLED
+DEFAULT_CORRECTIVE_TIMEOUT = 15.0
+MIN_RETRIEVAL_ROUNDS = 1
+MAX_RETRIEVAL_ROUNDS = 2
+DEFAULT_MAX_RETRIEVAL_ROUNDS = MAX_RETRIEVAL_ROUNDS
 INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
 
 
@@ -84,6 +92,9 @@ class RetrievalSettings:
     reranker: str = DEFAULT_RERANKER
     reranker_model: str = DEFAULT_RERANKER_MODEL
     candidate_limit: int = DEFAULT_CANDIDATE_LIMIT
+    corrective: str = DEFAULT_CORRECTIVE
+    corrective_timeout: float = DEFAULT_CORRECTIVE_TIMEOUT
+    max_retrieval_rounds: int = DEFAULT_MAX_RETRIEVAL_ROUNDS
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> RetrievalSettings:
@@ -123,6 +134,9 @@ class RetrievalSettings:
             raise ValueError(
                 "MCWIKI_CANDIDATE_LIMIT must be at least MCWIKI_EVIDENCE_LIMIT"
             )
+        corrective = values.get("MCWIKI_CORRECTIVE", DEFAULT_CORRECTIVE).strip()
+        if corrective not in SUPPORTED_CORRECTIVE:
+            raise ValueError("MCWIKI_CORRECTIVE is invalid")
         return cls(
             qdrant_url=values.get("MCWIKI_QDRANT_URL", DEFAULT_QDRANT_URL).strip(),
             collection=values.get("MCWIKI_QDRANT_COLLECTION", DEFAULT_COLLECTION).strip(),
@@ -149,6 +163,17 @@ class RetrievalSettings:
             reranker=reranker,
             reranker_model=reranker_model,
             candidate_limit=candidate_limit,
+            corrective=corrective,
+            corrective_timeout=_positive_float(
+                values, "MCWIKI_CORRECTIVE_TIMEOUT", DEFAULT_CORRECTIVE_TIMEOUT
+            ),
+            max_retrieval_rounds=_bounded_int(
+                values,
+                "MCWIKI_MAX_RETRIEVAL_ROUNDS",
+                DEFAULT_MAX_RETRIEVAL_ROUNDS,
+                minimum=MIN_RETRIEVAL_ROUNDS,
+                maximum=MAX_RETRIEVAL_ROUNDS,
+            ),
         )
 
 

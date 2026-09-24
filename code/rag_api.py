@@ -26,6 +26,11 @@ from rag_answer import (
     ModelUnavailableError,
     build_evidence,
 )
+from rag_correction import (
+    CorrectiveCoordinator,
+    EvidenceAssessor,
+    build_evidence_assessor,
+)
 from rag_query import OriginalQueryPlanner, QueryPlanner, build_query_planner
 from rag_reranker import (
     DISABLED as RERANKER_DISABLED,
@@ -39,6 +44,7 @@ from rag_retrieval.hybrid import HybridResult, HybridRetriever
 from rag_retrieval.factory import build_default_retriever as _build_default_retriever
 from rag_retrieval.multi_query import MultiQueryRetriever
 from rag_settings import (
+    CORRECTIVE_ENABLED,
     INSUFFICIENT_EVIDENCE_MESSAGE,
     RetrievalSettings,
     ServiceSettings,
@@ -178,6 +184,15 @@ def _default_lifespan() -> Any:
             ),
             reranker=reranker,
         )
+        assessor = getattr(app.state, "corrective_assessor", None)
+        if assessor is None:
+            assessor = build_evidence_assessor(
+                settings.corrective,
+                settings=answer_settings,
+                http_client=deepseek_http,
+                timeout=settings.corrective_timeout,
+            )
+        app.state.corrective_assessor = assessor
         try:
             yield
         finally:
@@ -221,12 +236,50 @@ def _public_source(item: AnswerEvidence) -> dict[str, Any]:
     }
 
 
+async def _collect_evidence(
+    question: str,
+    *,
+    query_retriever: RerankingRetriever,
+    retrieval_settings: RetrievalSettings,
+    assessor: EvidenceAssessor | None,
+) -> tuple[list[AnswerEvidence], bool]:
+    """Return the evidence the answer model may see, and whether it suffices.
+
+    Corrective retrieval runs only when it is switched on and an assessor exists;
+    its coordinator decides both rounds and the final evidence. Without it the
+    single-round baseline runs unchanged, and evidence is sufficient exactly when
+    something was retrieved.
+    """
+    if assessor is not None and retrieval_settings.corrective == CORRECTIVE_ENABLED:
+        result = await CorrectiveCoordinator(
+            retriever=query_retriever,
+            assessor=assessor,
+            settings=retrieval_settings,
+        ).run(question)
+        return list(result.evidence), result.sufficient
+
+    results = await query_retriever.search(
+        question,
+        bm25_limit=retrieval_settings.bm25_limit,
+        semantic_limit=retrieval_settings.semantic_limit,
+        candidate_limit=retrieval_settings.candidate_limit,
+        limit=retrieval_settings.evidence_limit,
+    )
+    evidence = build_evidence(
+        results,
+        max_context_chars=retrieval_settings.max_context_chars,
+        strategy=retrieval_settings.evidence_strategy,
+    )
+    return evidence, bool(evidence)
+
+
 def create_app(
     *,
     retriever: HybridRetriever | None = None,
     answer_client: AnswerStreamer | None = None,
     query_planner: QueryPlanner | None = None,
     reranker: Reranker | None = None,
+    corrective_assessor: EvidenceAssessor | None = None,
     cors_origins: Sequence[str] | None = None,
     cookie_secure: bool | None = None,
 ) -> FastAPI:
@@ -240,6 +293,8 @@ def create_app(
         app.state.query_planner = query_planner
     if reranker is not None:
         app.state.reranker = reranker
+    if corrective_assessor is not None:
+        app.state.corrective_assessor = corrective_assessor
     if retriever is not None:
         app.state.retriever = retriever
         if reranker is None:
@@ -354,6 +409,7 @@ def create_app(
         current_retriever = getattr(request.app.state, "retriever", None)
         current_query_retriever = getattr(request.app.state, "query_retriever", None)
         current_answer_client = getattr(request.app.state, "answer_client", None)
+        current_assessor = getattr(request.app.state, "corrective_assessor", None)
         retrieval_settings: RetrievalSettings = (
             getattr(request.app.state, "retrieval_settings", None)
             or RetrievalSettings.from_env()
@@ -371,14 +427,18 @@ def create_app(
             or any(value != "ok" for value in checks.values())
         ):
             return _error_response(503, "RETRIEVAL_UNAVAILABLE", "知识库检索暂时不可用，请稍后重试。")
+        if retrieval_settings.corrective == CORRECTIVE_ENABLED and current_assessor is None:
+            logger.warning(
+                "Corrective retrieval is enabled without an assessor; "
+                "answering from a single retrieval round"
+            )
 
         try:
-            results = await current_query_retriever.search(
+            evidence, sufficient = await _collect_evidence(
                 body.question,
-                bm25_limit=retrieval_settings.bm25_limit,
-                semantic_limit=retrieval_settings.semantic_limit,
-                candidate_limit=retrieval_settings.candidate_limit,
-                limit=retrieval_settings.evidence_limit,
+                query_retriever=current_query_retriever,
+                retrieval_settings=retrieval_settings,
+                assessor=current_assessor,
             )
         except Exception:
             logger.exception("Answer retrieval failed")
@@ -388,19 +448,16 @@ def create_app(
                 "知识库检索暂时不可用，请稍后重试。",
             )
 
-        evidence = build_evidence(
-            results,
-            max_context_chars=retrieval_settings.max_context_chars,
-            strategy=retrieval_settings.evidence_strategy,
-        )
-
         async def event_stream() -> AsyncIterator[str]:
+            # `sources` always describes the evidence handed to the answer model, so
+            # a refused answer announces none of the evidence it did not send.
+            published = evidence if sufficient else []
             yield _sse_event("meta", {"question": body.question})
             yield _sse_event(
                 "sources",
-                {"items": [_public_source(item) for item in evidence]},
+                {"items": [_public_source(item) for item in published]},
             )
-            if not evidence:
+            if not published:
                 yield _sse_event(
                     "delta",
                     {"text": INSUFFICIENT_EVIDENCE_MESSAGE},

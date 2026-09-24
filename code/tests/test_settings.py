@@ -99,6 +99,34 @@ class RuntimeSettingsTests(unittest.TestCase):
 
         self.assertEqual((settings.candidate_limit, settings.evidence_limit), (4, 8))
 
+    def test_corrective_retrieval_defaults_to_a_single_round(self):
+        settings = RetrievalSettings.from_env({})
+
+        self.assertEqual(settings.corrective, "none")
+        self.assertEqual(settings.corrective_timeout, 15.0)
+        self.assertEqual(settings.max_retrieval_rounds, 2)
+
+    def test_corrective_retrieval_options_can_be_overridden(self):
+        settings = RetrievalSettings.from_env({
+            "MCWIKI_CORRECTIVE": "corrective",
+            "MCWIKI_CORRECTIVE_TIMEOUT": "8",
+            "MCWIKI_MAX_RETRIEVAL_ROUNDS": "1",
+        })
+
+        self.assertEqual(settings.corrective, "corrective")
+        self.assertEqual(settings.corrective_timeout, 8.0)
+        self.assertEqual(settings.max_retrieval_rounds, 1)
+
+    def test_rejects_invalid_corrective_settings(self):
+        with self.assertRaisesRegex(ValueError, "MCWIKI_CORRECTIVE "):
+            RetrievalSettings.from_env({"MCWIKI_CORRECTIVE": "always"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_CORRECTIVE_TIMEOUT"):
+            RetrievalSettings.from_env({"MCWIKI_CORRECTIVE_TIMEOUT": "0"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_RETRIEVAL_ROUNDS"):
+            RetrievalSettings.from_env({"MCWIKI_MAX_RETRIEVAL_ROUNDS": "3"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_RETRIEVAL_ROUNDS"):
+            RetrievalSettings.from_env({"MCWIKI_MAX_RETRIEVAL_ROUNDS": "0"})
+
     def test_answer_service_options_can_be_overridden(self):
         settings = ServiceSettings.from_env({
             "MCWIKI_DEEPSEEK_READ_TIMEOUT": "45",

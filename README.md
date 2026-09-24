@@ -15,16 +15,18 @@ RRF 融合后组成证据上下文，由 DeepSeek 依据证据流式生成带编
 - BM25 + 语义双路召回、RRF 融合、相邻证据块合并与上下文预算控制；
 - 基于 SSE 的流式证据约束回答，带编号引用与来源卡片；
 - 查询规划可插拔：`original` 与 `step_back`（抽象问题 + 多查询 RRF 融合）；
-- 候选精排可插拔：`none` 与 `cross_encoder`（Cross-Encoder 重排候选池）。
+- 候选精排可插拔：`none` 与 `cross_encoder`（Cross-Encoder 重排候选池）；
+- 纠正检索可插拔：`none` 与 `corrective`（生成前评估证据充分性，不足时改写查询再检索一次）。
 
-任务 03（纠正式检索）、04（答案核验）、05（自适应路由）尚未实现，规划见
+任务 04（答案核验）、05（自适应路由）尚未实现，规划见
 [`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md)。
 
 ### 已知缺口
 
 - Cross-Encoder 精排已接入但**尚无 18 题 A/B 对比证据**，因此默认关闭；开启前应先按
   [评测与回归](#评测与回归)完成一次对照。
-- `step_back` 查询规划同样缺少评测报告，默认保持 `original`。
+- `step_back` 查询规划与 `corrective` 纠正检索同样缺少评测报告，默认分别保持 `original`
+  与 `none`。纠正检索会为每个请求增加一次评估调用，其收益与延迟代价尚未测量。
 - 评测集 v2 共 48 题，其中仅 7 题经人工确认答案要点，其余为候选标注。
 - `POST /search` 走的是不含查询规划与精排的混合检索，与 `/answers` 不是同一条链路，
   两者对同一问题可能给出不同排序。
@@ -41,6 +43,8 @@ SQLite FTS5 BM25  +  Qdrant 向量召回
                   ↓
           证据去重与上下文预算
                   ↓
+      证据充分性评估与一次纠正检索（可选）
+                  ↓
      DeepSeek 流式证据约束回答（SSE）
                   ↓
       React + 安全 Markdown + 来源卡片
@@ -56,6 +60,7 @@ SQLite FTS5 BM25  +  Qdrant 向量召回
 | 向量数据库 | Qdrant，集合 `mcwiki_chunks`，Cosine 距离 |
 | 融合方式 | RRF（Reciprocal Rank Fusion） |
 | 候选精排 | 可选 Cross-Encoder（默认 `BAAI/bge-reranker-base`），关闭时保持 RRF 顺序 |
+| 证据评估 | 可选 DeepSeek 结构化评估（`corrective`，默认关闭），判断证据是否足够并要求一次更好的检索查询 |
 | 回答生成 | DeepSeek `deepseek-v4-pro`，HTTPX 流式调用 |
 | 前端 | React + TypeScript + Vite + React Three Fiber |
 
@@ -70,7 +75,7 @@ frontend/             React 问答界面
 data/                 original_dataset.json（随仓库提供）与评测数据
 docs/                 规格、规划与归档
   specs/              问答 Web MVP 的接口与错误契约
-  tasks/ragV2/        当前任务包（03～05 待执行）
+  tasks/ragV2/        当前任务包（04～05 待执行）
   ideas/              暂缓实施的 Agentic RAG 方案
   过期文档/           已结束或被现状取代的文档，仅作历史记录
 ```
@@ -161,6 +166,22 @@ uv sync --extra reranker          # 安装 sentence-transformers/torch（可选�
 记录日志，`/ready` 会报告 `reranker: unavailable`。无法访问 `huggingface.co` 的网络可先
 设置 `HF_ENDPOINT=https://hf-mirror.com` 下载模型。
 
+### 5. 可选：启用纠正检索
+
+默认关闭（`MCWIKI_CORRECTIVE=none`），`/answers` 在证据组装完成后直接生成回答。开启后
+链路变为「检索一轮 → 评估证据是否足够 → 不足时按改写查询补充检索一轮 → 两轮候选按
+`chunk_id` 经 RRF 合并 → 统一精排与证据预算 → 再一次评估 → 仍然不足则拒答」。最多两轮，
+轮数上限写在代码里，模型输出无法扩大它。
+
+```powershell
+# 在 .env 中设置 MCWIKI_CORRECTIVE=corrective 后启动服务
+```
+
+评估调用使用与回答相同的 DeepSeek 配置，超时由 `MCWIKI_CORRECTIVE_TIMEOUT` 控制。评估
+不可用、超时或返回非法 JSON 时保留单轮检索结果并记录警告，不会让问答失败。纠正只作用于
+现有 MCwiki 知识库，不接开放互联网。`/answers` 的 `sources` 事件始终等于最终交给生成模型的
+证据，拒答时不发送任何来源。
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -176,7 +197,7 @@ uv sync --extra reranker          # 安装 sentence-transformers/torch（可选�
 ## 测试
 
 ```powershell
-# 后端：18 个测试文件、185 项用例，全部离线，不访问网络与真实数据库
+# 后端：19 个测试文件、231 项用例，全部离线，不访问网络与真实数据库
 cd code
 uv run --with pytest python -m pytest
 
@@ -222,7 +243,7 @@ BM25 查询策略对照见 [`data/evaluation/REPORT-2026-09-23-bm25-diagnostic.m
 | [`项目启动说明.txt`](项目启动说明.txt) | 逐步骤的本地启动、依赖服务与常见问题排查 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 系统架构、请求链路、扩展点、稳定契约与已知权衡 |
 | [`docs/specs/qa-web-mvp.md`](docs/specs/qa-web-mvp.md) | 问答 Web MVP 规格：UX、SSE 与错误契约、提示词约束、完成标准 |
-| [`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md) | 当前任务包：01 查询规划、02 精排已实现，03～05 待执行；完成情况见 [STATUS.md](docs/tasks/ragV2/STATUS.md) |
+| [`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md) | 当前任务包：01 查询规划、02 精排、03 纠正检索已实现，04～05 待执行；完成情况见 [STATUS.md](docs/tasks/ragV2/STATUS.md) |
 | [`docs/ideas/agentic-rag.md`](docs/ideas/agentic-rag.md) | 暂缓实施的证据驱动 Agentic RAG 方案 |
 | [`docs/过期文档/`](docs/过期文档/README.md) | 历史文档归档（MVP 计划、项目状态、技术指南、阶段交接与评审记录） |
 
