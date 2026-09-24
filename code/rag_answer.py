@@ -108,7 +108,11 @@ def build_evidence(
     )
 
 
-def _context_message(question: str, evidence: Sequence[AnswerEvidence]) -> str:
+def _context_message(
+    question: str,
+    evidence: Sequence[AnswerEvidence],
+    feedback: str = "",
+) -> str:
     sections = [
         "\n".join(
             [
@@ -119,7 +123,10 @@ def _context_message(question: str, evidence: Sequence[AnswerEvidence]) -> str:
         )
         for item in evidence
     ]
-    return f"问题：{question}\n\n可用证据：\n\n" + "\n\n".join(sections)
+    message = f"问题：{question}\n\n可用证据：\n\n" + "\n\n".join(sections)
+    if feedback:
+        message = f"{message}\n\n重写要求：\n\n{feedback}"
+    return message
 
 
 def _content_from_chunk(value: Any) -> str | None:
@@ -162,6 +169,8 @@ class DeepSeekAnswerClient:
         self,
         question: str,
         evidence: Sequence[AnswerEvidence],
+        *,
+        feedback: str = "",
     ) -> AsyncIterator[str]:
         payload = {
             "model": self._settings.model,
@@ -169,7 +178,7 @@ class DeepSeekAnswerClient:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": _context_message(question, evidence),
+                    "content": _context_message(question, evidence, feedback),
                 },
             ],
             "stream": True,
@@ -223,3 +232,21 @@ class DeepSeekAnswerClient:
 
         if not saw_done:
             raise ModelResponseError("model stream ended before completion")
+
+    async def collect_answer(
+        self,
+        question: str,
+        evidence: Sequence[AnswerEvidence],
+        *,
+        feedback: str = "",
+    ) -> str:
+        """Return the whole answer instead of streaming it chunk by chunk.
+
+        A caller that must inspect the complete text before anything reaches the
+        browser reads the same validated stream joined into one string.
+        """
+        chunks = [
+            chunk
+            async for chunk in self.stream_answer(question, evidence, feedback=feedback)
+        ]
+        return "".join(chunks)

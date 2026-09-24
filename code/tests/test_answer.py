@@ -251,6 +251,63 @@ class DeepSeekAnswerClientTests(unittest.IsolatedAsyncioTestCase):
                     )
                 ]
 
+    async def test_collects_the_whole_draft_and_appends_rewrite_feedback(self):
+        captured_request = {}
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            captured_request["body"] = json.loads(request.content)
+            body = "\n".join(
+                [
+                    'data: {"choices":[{"delta":{"content":"中继器可以"}}]}',
+                    'data: {"choices":[{"delta":{"content":"延迟信号。[1]"}}]}',
+                    "data: [DONE]",
+                    "",
+                ]
+            )
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=body.encode(),
+            )
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            client = DeepSeekAnswerClient(
+                settings=DeepSeekSettings(
+                    api_key="test-secret",
+                    base_url="https://api.deepseek.com",
+                    model="deepseek-v4-pro",
+                ),
+                http_client=http_client,
+            )
+            evidence = [
+                AnswerEvidence(
+                    id=1,
+                    chunk_id="chunk-redstone",
+                    title="红石中继器",
+                    url="https://zh.minecraft.wiki/w/红石中继器",
+                    text="红石中继器可以延迟红石信号。",
+                    excerpt="红石中继器可以延迟红石信号。",
+                )
+            ]
+
+            draft = await client.collect_answer("中继器有什么作用？", evidence)
+            baseline_message = captured_request["body"]["messages"][1]["content"]
+            feedback = "需要修正的问题：\n- 引用了不存在的编号 [9]。"
+            rewritten = await client.collect_answer(
+                "中继器有什么作用？", evidence, feedback=feedback
+            )
+
+        self.assertEqual(draft, "中继器可以延迟信号。[1]")
+        self.assertEqual(rewritten, draft)
+        self.assertNotIn("重写要求", baseline_message)
+        # A rewrite keeps the baseline request and only appends the instruction, so it
+        # still answers from the same evidence.
+        self.assertTrue(captured_request["body"]["messages"][1]["content"].startswith(baseline_message))
+        self.assertIn("重写要求", captured_request["body"]["messages"][1]["content"])
+        self.assertIn(feedback, captured_request["body"]["messages"][1]["content"])
+
 
 if __name__ == "__main__":
     unittest.main()

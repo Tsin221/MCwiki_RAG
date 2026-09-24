@@ -25,6 +25,15 @@ from rag_settings import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
     RetrievalSettings,
     STEP_BACK_QUERY_STRATEGY,
+    VERIFICATION_ENABLED,
+)
+from rag_verification import (
+    VERIFICATION_PASSED,
+    VERIFICATION_UNAVAILABLE,
+    VERIFICATION_UNSUPPORTED,
+    ClaimCheck,
+    DeepSeekAnswerVerifier,
+    ModelVerdict,
 )
 
 
@@ -1169,6 +1178,347 @@ class CorrectiveAnswerApiTests(unittest.TestCase):
                     pass
 
         self.assertIsNone(app.state.corrective_assessor)
+
+
+class ScriptedAnswerClient:
+    """Answer with the scripted drafts in order; the last one repeats."""
+
+    def __init__(self, drafts):
+        self.drafts = list(drafts)
+        self.calls = []
+
+    def _next(self, question, evidence, feedback):
+        self.calls.append(
+            {
+                "question": question,
+                "evidence": list(evidence),
+                "feedback": feedback,
+            }
+        )
+        return self.drafts[min(len(self.calls) - 1, len(self.drafts) - 1)]
+
+    async def collect_answer(self, question, evidence, *, feedback=""):
+        return self._next(question, evidence, feedback)
+
+    async def stream_answer(self, question, evidence):
+        yield self._next(question, evidence, "")
+
+    def seen_chunk_ids(self, index):
+        return [item.chunk_id for item in self.calls[index]["evidence"]]
+
+
+class ScriptedModelVerifier:
+    """Return the scripted verdicts in order; the last one repeats."""
+
+    def __init__(self, verdicts=(), *, error=None):
+        self.calls = []
+        self.verdicts = list(verdicts)
+        self.error = error
+
+    async def verify(self, question, answer, evidence):
+        self.calls.append(
+            {"question": question, "answer": answer, "evidence": list(evidence)}
+        )
+        if self.error is not None:
+            raise self.error
+        index = min(len(self.calls) - 1, len(self.verdicts) - 1)
+        return self.verdicts[index]
+
+    def seen_answers(self):
+        return [call["answer"] for call in self.calls]
+
+
+def claim(text, *, citation_ids=(1,), supported=True, reason=""):
+    return ClaimCheck(
+        claim=text,
+        citation_ids=tuple(citation_ids),
+        supported=supported,
+        reason=reason,
+    )
+
+
+def verdict(*claims, useful=True, issues=()):
+    return ModelVerdict(claims=tuple(claims), useful=useful, issues=tuple(issues))
+
+
+class VerifiedAnswerApiTests(unittest.TestCase):
+    question = "红石中继器有什么作用？"
+    draft = "红石中继器可以延迟红石信号。[1]"
+    rewritten = "红石中继器可以延迟并增强红石信号。[1]"
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.bm25_path = Path(directory.name) / "bm25.db"
+        self.bm25_path.touch()
+
+    def settings(self, *, verification=VERIFICATION_ENABLED, max_answer_attempts=2):
+        return RetrievalSettings(
+            bm25_path=self.bm25_path,
+            answer_verification=verification,
+            max_answer_attempts=max_answer_attempts,
+        )
+
+    def build_client(
+        self,
+        answer_client,
+        verifier=None,
+        *,
+        retrieval=None,
+        verification=VERIFICATION_ENABLED,
+        max_answer_attempts=2,
+    ):
+        app = create_app(
+            retriever=retrieval or RecordingRetriever({self.question: [stub_result("a")]}),
+            answer_client=answer_client,
+            answer_verifier=verifier,
+        )
+        app.state.retrieval_settings = self.settings(
+            verification=verification,
+            max_answer_attempts=max_answer_attempts,
+        )
+        app.state.qdrant = SimpleNamespace(
+            get_collection=lambda name: SimpleNamespace(
+                config=SimpleNamespace(
+                    params=SimpleNamespace(
+                        vectors=SimpleNamespace(size=RetrievalSettings().vector_size)
+                    )
+                ),
+                status="green",
+            )
+        )
+        return TestClient(app)
+
+    def post_answer(self, client):
+        return client.post("/answers", json={"question": self.question})
+
+    def text_of(self, response):
+        return "".join(
+            data["text"]
+            for event, data in parse_sse(response.text)
+            if event == "delta"
+        )
+
+    def test_the_switch_off_streams_the_baseline_answer(self):
+        answer_client = ScriptedAnswerClient([self.draft])
+        verifier = ScriptedModelVerifier([verdict(claim("延迟信号"))])
+
+        response = self.post_answer(
+            self.build_client(
+                answer_client, verifier, verification="none"
+            )
+        )
+
+        self.assertEqual(verifier.calls, [])
+        self.assertEqual(self.text_of(response), self.draft)
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+
+    def test_a_verified_draft_is_sent_with_a_verified_status(self):
+        answer_client = ScriptedAnswerClient([self.draft])
+        verifier = ScriptedModelVerifier([verdict(claim("红石中继器可以延迟红石信号"))])
+
+        response = self.post_answer(self.build_client(answer_client, verifier))
+        events = parse_sse(response.text)
+
+        self.assertEqual(len(answer_client.calls), 1)
+        self.assertEqual(len(verifier.calls), 1)
+        self.assertEqual(verifier.calls[0]["answer"], self.draft)
+        self.assertEqual(events[1][0], "sources")
+        self.assertEqual(self.text_of(response), self.draft)
+        self.assertEqual(
+            events[-1],
+            ("done", {"status": "answered", "verification": VERIFICATION_PASSED}),
+        )
+
+    def test_a_rejected_draft_never_reaches_the_browser(self):
+        answer_client = ScriptedAnswerClient([self.draft, self.rewritten])
+        verifier = ScriptedModelVerifier(
+            [
+                verdict(
+                    claim("红石中继器可以延迟红石信号", supported=False, reason="证据[1]只说延迟，未提增强"),
+                    issues=("第一条声明与证据不符",),
+                ),
+                verdict(claim("红石中继器可以延迟并增强红石信号")),
+            ]
+        )
+
+        response = self.post_answer(self.build_client(answer_client, verifier))
+
+        self.assertEqual(len(answer_client.calls), 2)
+        self.assertEqual(len(verifier.calls), 2)
+        self.assertEqual(verifier.seen_answers(), [self.draft, self.rewritten])
+        self.assertEqual(self.text_of(response), self.rewritten)
+        self.assertNotIn(self.draft, response.text)
+        # The rewrite is asked for with the verifier's own findings, from the same evidence.
+        self.assertIn("第一条声明与证据不符", answer_client.calls[1]["feedback"])
+        self.assertEqual(answer_client.seen_chunk_ids(0), ["a"])
+        self.assertEqual(answer_client.seen_chunk_ids(1), ["a"])
+        self.assertEqual(
+            parse_sse(response.text)[-1],
+            ("done", {"status": "answered", "verification": VERIFICATION_PASSED}),
+        )
+
+    def test_a_second_failure_becomes_an_explicit_insufficient_status(self):
+        answer_client = ScriptedAnswerClient([self.draft, self.rewritten])
+        verifier = ScriptedModelVerifier(
+            [
+                verdict(claim("红石中继器可以延迟红石信号", supported=False, reason="不受支持")),
+                verdict(claim("红石中继器可以延迟并增强红石信号", supported=False, reason="仍不受支持")),
+            ]
+        )
+
+        response = self.post_answer(self.build_client(answer_client, verifier))
+        events = parse_sse(response.text)
+
+        self.assertEqual(len(answer_client.calls), 2)
+        self.assertEqual(len(verifier.calls), 2)
+        self.assertEqual(
+            events[-2:],
+            [
+                ("delta", {"text": INSUFFICIENT_EVIDENCE_MESSAGE}),
+                (
+                    "done",
+                    {
+                        "status": "insufficientEvidence",
+                        "verification": VERIFICATION_UNSUPPORTED,
+                    },
+                ),
+            ],
+        )
+        self.assertNotIn(self.draft, response.text)
+        self.assertNotIn(self.rewritten, response.text)
+
+    def test_an_invented_citation_is_stopped_before_the_verifier_is_called(self):
+        answer_client = ScriptedAnswerClient(["红石中继器可以延迟红石信号。[9]"])
+        verifier = ScriptedModelVerifier([verdict(claim("延迟信号"))])
+
+        response = self.post_answer(self.build_client(answer_client, verifier))
+
+        self.assertEqual(verifier.calls, [])
+        self.assertEqual(len(answer_client.calls), 2)
+        self.assertEqual(parse_sse(response.text)[-1][1]["verification"], VERIFICATION_UNSUPPORTED)
+        self.assertEqual(self.text_of(response), INSUFFICIENT_EVIDENCE_MESSAGE)
+        self.assertNotIn("[9]", response.text)
+
+    def test_a_sub_question_left_unanswered_is_rewritten_once(self):
+        answer_client = ScriptedAnswerClient([self.draft, self.rewritten])
+        verifier = ScriptedModelVerifier(
+            [
+                verdict(
+                    claim("红石中继器可以延迟红石信号"),
+                    useful=False,
+                    issues=("没有回答合成方式",),
+                ),
+                verdict(claim("红石中继器可以延迟并增强红石信号")),
+            ]
+        )
+
+        response = self.post_answer(self.build_client(answer_client, verifier))
+
+        self.assertEqual(self.text_of(response), self.rewritten)
+        self.assertEqual(len(verifier.calls), 2)
+        self.assertIn("没有回答合成方式", answer_client.calls[1]["feedback"])
+
+    def test_a_single_attempt_budget_verifies_without_rewriting(self):
+        answer_client = ScriptedAnswerClient([self.draft, self.rewritten])
+        verifier = ScriptedModelVerifier(
+            [verdict(claim("红石中继器可以延迟红石信号", supported=False))]
+        )
+
+        response = self.post_answer(
+            self.build_client(answer_client, verifier, max_answer_attempts=1)
+        )
+
+        self.assertEqual(len(answer_client.calls), 1)
+        self.assertEqual(len(verifier.calls), 1)
+        self.assertEqual(self.text_of(response), INSUFFICIENT_EVIDENCE_MESSAGE)
+
+    def test_a_broken_verifier_answers_with_an_unavailable_status(self):
+        answer_client = ScriptedAnswerClient([self.draft])
+        verifier = ScriptedModelVerifier(error=RuntimeError("verification endpoint down"))
+
+        with self.assertLogs("rag_verification", level="WARNING") as logs:
+            response = self.post_answer(self.build_client(answer_client, verifier))
+
+        self.assertEqual(self.text_of(response), self.draft)
+        self.assertEqual(
+            parse_sse(response.text)[-1],
+            ("done", {"status": "answered", "verification": VERIFICATION_UNAVAILABLE}),
+        )
+        self.assertEqual(len(answer_client.calls), 1)
+        self.assertIn("without a claim check", "\n".join(logs.output))
+        self.assertNotIn("verification endpoint down", response.text)
+
+    def test_verification_needs_an_answer_client_that_can_collect_a_draft(self):
+        # FakeAnswerClient predates the verification layer and only streams.
+        answer_client = FakeAnswerClient()
+        verifier = ScriptedModelVerifier([verdict(claim("延迟信号"))])
+
+        with self.assertLogs("rag_api", level="WARNING") as logs:
+            response = self.post_answer(self.build_client(answer_client, verifier))
+
+        self.assertEqual(verifier.calls, [])
+        self.assertEqual(
+            [data["text"] for event, data in parse_sse(response.text) if event == "delta"],
+            answer_client.chunks,
+        )
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+        self.assertIn("collect a draft", "\n".join(logs.output))
+
+    def test_verification_without_a_verifier_falls_back_to_the_draft(self):
+        answer_client = ScriptedAnswerClient([self.draft])
+
+        with self.assertLogs("rag_api", level="WARNING") as logs:
+            response = self.post_answer(self.build_client(answer_client, verifier=None))
+
+        self.assertEqual(self.text_of(response), self.draft)
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+        self.assertIn("without a verifier", "\n".join(logs.output))
+
+    def test_the_default_startup_path_builds_the_verifier_when_enabled(self):
+        app = self.startup_app(verification=VERIFICATION_ENABLED)
+
+        self.assertIsInstance(app.state.answer_verifier, DeepSeekAnswerVerifier)
+
+    def test_the_default_startup_path_builds_no_verifier_by_default(self):
+        app = self.startup_app(verification="none")
+
+        self.assertIsNone(app.state.answer_verifier)
+
+    def startup_app(self, *, verification):
+        with tempfile.TemporaryDirectory() as directory:
+            bm25_path = Path(directory) / "bm25.db"
+            bm25_path.touch()
+            settings = RetrievalSettings(
+                bm25_path=bm25_path, answer_verification=verification
+            )
+            collection = SimpleNamespace(
+                config=SimpleNamespace(
+                    params=SimpleNamespace(
+                        vectors=SimpleNamespace(size=settings.vector_size)
+                    )
+                ),
+                status="green",
+            )
+            qdrant = SimpleNamespace(
+                get_collection=lambda name: collection,
+                close=lambda: None,
+            )
+            with patch("rag_api.RetrievalSettings.from_env", return_value=settings), patch(
+                "rag_api._build_default_retriever",
+                return_value=(
+                    RecordingRetriever(),
+                    SimpleNamespace(close=lambda: None),
+                    qdrant,
+                ),
+            ), patch(
+                "rag_api.DeepSeekSettings.from_env",
+                return_value=DeepSeekSettings(api_key="test-key"),
+            ):
+                app = create_app()
+                with TestClient(app):
+                    pass
+        return app
 
 
 if __name__ == "__main__":

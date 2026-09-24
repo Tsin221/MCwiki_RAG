@@ -48,6 +48,16 @@ from rag_settings import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
     RetrievalSettings,
     ServiceSettings,
+    VERIFICATION_ENABLED,
+)
+from rag_verification import (
+    VERIFICATION_PASSED,
+    VERIFICATION_UNAVAILABLE,
+    VERIFICATION_UNSUPPORTED,
+    AnswerVerification,
+    AnswerVerificationCoordinator,
+    AnswerVerifier,
+    build_answer_verifier,
 )
 
 
@@ -193,6 +203,15 @@ def _default_lifespan() -> Any:
                 timeout=settings.corrective_timeout,
             )
         app.state.corrective_assessor = assessor
+        verifier = getattr(app.state, "answer_verifier", None)
+        if verifier is None:
+            verifier = build_answer_verifier(
+                settings.answer_verification,
+                settings=answer_settings,
+                http_client=deepseek_http,
+                timeout=settings.verification_timeout,
+            )
+        app.state.answer_verifier = verifier
         try:
             yield
         finally:
@@ -273,6 +292,39 @@ async def _collect_evidence(
     return evidence, bool(evidence)
 
 
+def _answer_verifier(
+    settings: RetrievalSettings,
+    verifier: AnswerVerifier | None,
+    answer_client: Any,
+) -> AnswerVerifier | None:
+    """Return the verifier only when it is switched on and its dependencies exist.
+
+    Verification needs both a verifier and an answer client that can hand over a
+    complete draft; without either one the request keeps the streaming baseline
+    instead of failing.
+    """
+    if settings.answer_verification != VERIFICATION_ENABLED:
+        return None
+    if verifier is None:
+        logger.warning(
+            "Answer verification is enabled without a verifier; "
+            "sending the draft without a claim check"
+        )
+        return None
+    if not callable(getattr(answer_client, "collect_answer", None)):
+        logger.warning(
+            "Answer verification needs an answer client that can collect a draft; "
+            "sending the draft without a claim check"
+        )
+        return None
+    return verifier
+
+
+def _verification_status(verification: AnswerVerification | None) -> str:
+    """The coarse public state; never the model's reasoning or internal scores."""
+    return VERIFICATION_UNAVAILABLE if verification is None else VERIFICATION_PASSED
+
+
 def create_app(
     *,
     retriever: HybridRetriever | None = None,
@@ -280,6 +332,7 @@ def create_app(
     query_planner: QueryPlanner | None = None,
     reranker: Reranker | None = None,
     corrective_assessor: EvidenceAssessor | None = None,
+    answer_verifier: AnswerVerifier | None = None,
     cors_origins: Sequence[str] | None = None,
     cookie_secure: bool | None = None,
 ) -> FastAPI:
@@ -295,6 +348,8 @@ def create_app(
         app.state.reranker = reranker
     if corrective_assessor is not None:
         app.state.corrective_assessor = corrective_assessor
+    if answer_verifier is not None:
+        app.state.answer_verifier = answer_verifier
     if retriever is not None:
         app.state.retriever = retriever
         if reranker is None:
@@ -420,6 +475,11 @@ def create_app(
                 "CONFIGURATION_ERROR",
                 "回答服务尚未正确配置。",
             )
+        current_verifier = _answer_verifier(
+            retrieval_settings,
+            getattr(request.app.state, "answer_verifier", None),
+            current_answer_client,
+        )
         checks = await anyio.to_thread.run_sync(_retrieval_checks, request.app)
         if (
             current_retriever is None
@@ -469,12 +529,21 @@ def create_app(
                 return
 
             try:
-                async for text in current_answer_client.stream_answer(
-                    body.question,
-                    evidence,
-                ):
-                    yield _sse_event("delta", {"text": text})
-                yield _sse_event("done", {"status": "answered"})
+                if current_verifier is None:
+                    # Without verification the answer streams straight through, exactly
+                    # as it did before this layer existed.
+                    async for text in current_answer_client.stream_answer(
+                        body.question,
+                        evidence,
+                    ):
+                        yield _sse_event("delta", {"text": text})
+                    yield _sse_event("done", {"status": "answered"})
+                    return
+                result = await AnswerVerificationCoordinator(
+                    answerer=current_answer_client,
+                    verifier=current_verifier,
+                    max_attempts=retrieval_settings.max_answer_attempts,
+                ).run(body.question, evidence)
             except ModelTimeoutError:
                 logger.exception("Answer generation timed out")
                 yield _sse_event(
@@ -500,6 +569,28 @@ def create_app(
                     {
                         "code": "INTERNAL_ERROR",
                         "message": "回答生成中断，请稍后重试。",
+                    },
+                )
+            else:
+                # Only the verified text is ever sent: a draft that failed verification
+                # is replaced by the refusal instead of reaching the browser.
+                if result.withheld:
+                    yield _sse_event("delta", {"text": INSUFFICIENT_EVIDENCE_MESSAGE})
+                    yield _sse_event(
+                        "done",
+                        {
+                            "status": "insufficientEvidence",
+                            "verification": VERIFICATION_UNSUPPORTED,
+                        },
+                    )
+                    return
+                if result.answer:
+                    yield _sse_event("delta", {"text": result.answer})
+                yield _sse_event(
+                    "done",
+                    {
+                        "status": "answered",
+                        "verification": _verification_status(result.verification),
                     },
                 )
 

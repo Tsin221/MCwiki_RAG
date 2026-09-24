@@ -42,6 +42,14 @@ DEFAULT_CORRECTIVE_TIMEOUT = 15.0
 MIN_RETRIEVAL_ROUNDS = 1
 MAX_RETRIEVAL_ROUNDS = 2
 DEFAULT_MAX_RETRIEVAL_ROUNDS = MAX_RETRIEVAL_ROUNDS
+VERIFICATION_DISABLED = "none"
+VERIFICATION_ENABLED = "verify"
+SUPPORTED_VERIFICATION: tuple[str, ...] = (VERIFICATION_DISABLED, VERIFICATION_ENABLED)
+DEFAULT_VERIFICATION = VERIFICATION_DISABLED
+DEFAULT_VERIFICATION_TIMEOUT = 15.0
+MIN_ANSWER_ATTEMPTS = 1
+MAX_ANSWER_ATTEMPTS = 2
+DEFAULT_MAX_ANSWER_ATTEMPTS = MAX_ANSWER_ATTEMPTS
 INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
 
 
@@ -95,6 +103,9 @@ class RetrievalSettings:
     corrective: str = DEFAULT_CORRECTIVE
     corrective_timeout: float = DEFAULT_CORRECTIVE_TIMEOUT
     max_retrieval_rounds: int = DEFAULT_MAX_RETRIEVAL_ROUNDS
+    answer_verification: str = DEFAULT_VERIFICATION
+    verification_timeout: float = DEFAULT_VERIFICATION_TIMEOUT
+    max_answer_attempts: int = DEFAULT_MAX_ANSWER_ATTEMPTS
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> RetrievalSettings:
@@ -137,6 +148,11 @@ class RetrievalSettings:
         corrective = values.get("MCWIKI_CORRECTIVE", DEFAULT_CORRECTIVE).strip()
         if corrective not in SUPPORTED_CORRECTIVE:
             raise ValueError("MCWIKI_CORRECTIVE is invalid")
+        answer_verification = values.get(
+            "MCWIKI_ANSWER_VERIFICATION", DEFAULT_VERIFICATION
+        ).strip()
+        if answer_verification not in SUPPORTED_VERIFICATION:
+            raise ValueError("MCWIKI_ANSWER_VERIFICATION is invalid")
         return cls(
             qdrant_url=values.get("MCWIKI_QDRANT_URL", DEFAULT_QDRANT_URL).strip(),
             collection=values.get("MCWIKI_QDRANT_COLLECTION", DEFAULT_COLLECTION).strip(),
@@ -173,6 +189,17 @@ class RetrievalSettings:
                 DEFAULT_MAX_RETRIEVAL_ROUNDS,
                 minimum=MIN_RETRIEVAL_ROUNDS,
                 maximum=MAX_RETRIEVAL_ROUNDS,
+            ),
+            answer_verification=answer_verification,
+            verification_timeout=_positive_float(
+                values, "MCWIKI_VERIFICATION_TIMEOUT", DEFAULT_VERIFICATION_TIMEOUT
+            ),
+            max_answer_attempts=_bounded_int(
+                values,
+                "MCWIKI_MAX_ANSWER_ATTEMPTS",
+                DEFAULT_MAX_ANSWER_ATTEMPTS,
+                minimum=MIN_ANSWER_ATTEMPTS,
+                maximum=MAX_ANSWER_ATTEMPTS,
             ),
         )
 

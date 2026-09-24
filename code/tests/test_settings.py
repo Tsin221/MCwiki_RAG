@@ -127,6 +127,34 @@ class RuntimeSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_RETRIEVAL_ROUNDS"):
             RetrievalSettings.from_env({"MCWIKI_MAX_RETRIEVAL_ROUNDS": "0"})
 
+    def test_answer_verification_defaults_to_sending_the_draft_unchecked(self):
+        settings = RetrievalSettings.from_env({})
+
+        self.assertEqual(settings.answer_verification, "none")
+        self.assertEqual(settings.verification_timeout, 15.0)
+        self.assertEqual(settings.max_answer_attempts, 2)
+
+    def test_answer_verification_options_can_be_overridden(self):
+        settings = RetrievalSettings.from_env({
+            "MCWIKI_ANSWER_VERIFICATION": "verify",
+            "MCWIKI_VERIFICATION_TIMEOUT": "8",
+            "MCWIKI_MAX_ANSWER_ATTEMPTS": "1",
+        })
+
+        self.assertEqual(settings.answer_verification, "verify")
+        self.assertEqual(settings.verification_timeout, 8.0)
+        self.assertEqual(settings.max_answer_attempts, 1)
+
+    def test_rejects_invalid_answer_verification_settings(self):
+        with self.assertRaisesRegex(ValueError, "MCWIKI_ANSWER_VERIFICATION"):
+            RetrievalSettings.from_env({"MCWIKI_ANSWER_VERIFICATION": "always"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_VERIFICATION_TIMEOUT"):
+            RetrievalSettings.from_env({"MCWIKI_VERIFICATION_TIMEOUT": "0"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_ANSWER_ATTEMPTS"):
+            RetrievalSettings.from_env({"MCWIKI_MAX_ANSWER_ATTEMPTS": "3"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_MAX_ANSWER_ATTEMPTS"):
+            RetrievalSettings.from_env({"MCWIKI_MAX_ANSWER_ATTEMPTS": "0"})
+
     def test_answer_service_options_can_be_overridden(self):
         settings = ServiceSettings.from_env({
             "MCWIKI_DEEPSEEK_READ_TIMEOUT": "45",
