@@ -5,9 +5,10 @@
 本文件记录本目录五个任务的实现与验收状态，按 `README.md` 的「统一交接格式」组织。任务文档
 中的验收复选框尚未勾选，本文件是当前的唯一完成情况记录。
 
-核对方式：代码与 git 历史逐项比对，后端完整测试于 2026-09-24 在提交 `e1ef515` 上实际执行。
-任务文档中的「验收标准」逐条列在下面。01～03 均已合并到 `main`：03 由分支
-`codex/ragv2-corrective` 快进合并，该分支保留但不再更新。
+核对方式：代码与 git 历史逐项比对，后端完整测试于 2026-09-24 在提交 `e1ef515`（01～03）与
+`c6747fb`（04）上实际执行。任务文档中的「验收标准」逐条列在下面。01～03 均已合并到 `main`：
+03 由分支 `codex/ragv2-corrective` 快进合并，该分支保留但不再更新；04 在分支
+`codex/ragv2-answer-verification` 上，尚未合并。
 
 ## 总览
 
@@ -16,10 +17,10 @@
 | 01 Step-back 双路检索 | 已实现、验收通过 | `2c3c498`、`dcacf1a` | `MCWIKI_QUERY_STRATEGY=original` | 无 18 题对照证据 |
 | 02 Cross-Encoder 精排 | 已实现，验收缺一项 | `ae9f5bc` | `MCWIKI_RERANKER=none` | 真实模型中文烟雾测试与耗时记录缺失 |
 | 03 Corrective RAG | 已实现、验收通过 | `c91a49d` | `MCWIKI_CORRECTIVE=none` | 无 18 题对照证据；未在真实 DeepSeek 上跑过 |
-| 04 答案证据核验 | 未开始 | — | — | 依赖 03 |
+| 04 答案证据核验 | 已实现、验收通过（待合并） | `c6747fb` | `MCWIKI_ANSWER_VERIFICATION=none` | 无 18 题对照证据；未在真实 DeepSeek 上跑过 |
 | 05 Adaptive 路由 | 未开始 | — | — | 依赖 04 |
 
-01、02、03 都只完成了代码与单元测试，**都没有做过 18 题对照评测**，因此默认开关均为关闭状态。
+01～04 都只完成了代码与单元测试，**都没有做过 18 题对照评测**，因此默认开关均为关闭状态。
 按 `README.md` 共同规则第 9 条，关闭后行为必须与基线一致，这一点有测试保证。
 
 ---
@@ -315,17 +316,158 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 
 ---
 
-## 任务 04～05：未开始
+## 任务 04：Self-RAG 式答案证据核验
 
-两个任务均无任何代码、测试或配置，下列文件不存在：
+### 分支与提交
 
-| 任务 | 预计新增文件 | 状态 |
+- `c6747fb` feat: add bounded answer verification with one rewrite
+
+分支 `codex/ragv2-answer-verification`，基于 `main` 的 `e1ef515`（任务 03 已合并），**尚未
+合并到 `main`**。
+
+### 修改文件清单
+
+新增（与任务文档「文件边界」的预计一致）：
+
+- `code/rag_verification.py`（596 行）：`ClaimCheck`、`CitationAudit`、`ModelVerdict`、
+  `AnswerVerification`、`VerificationResult`、`AnswerVerifier` 与 `DraftAnswerer` 协议、
+  `citation_audit()`、`build_verification()`、`rewrite_feedback()`、`parse_verdict()`、
+  `DeepSeekAnswerVerifier`、`build_answer_verifier()`、`AnswerVerificationCoordinator`
+- `code/tests/test_verification.py`（43 项用例，含 30 项 subTest）
+
+修改：
+
+- `code/rag_answer.py`：`DeepSeekAnswerClient.collect_answer()` 新增（整稿收集），
+  `stream_answer()` 与 `_context_message()` 增加可选 `feedback`，为空时请求体与基线逐字节一致
+- `code/rag_api.py`：`/answers` 接入核验流程，新增 `_answer_verifier()`（开关与依赖检查）、
+  `_verification_status()`，`create_app()` 增加 `answer_verifier` 注入点，`_default_lifespan`
+  装配核验器
+- `code/rag_settings.py`：核验开关、核验超时、最大答案版本数
+- `code/tests/test_api.py`（新增 12 项用例）、`code/tests/test_answer.py`（新增 1 项）、
+  `code/tests/test_settings.py`（新增 3 项）、`.env.example`、`README.md`
+
+未改动检索、重排、chunk、证据编号与相邻合并规则；未改动前端；未加入第三轮检索或自由循环。
+
+### 验证命令与结果
+
+任务文档规定的针对性验证：
+
+```powershell
+uv run --with pytest python -m pytest -q tests/test_verification.py tests/test_answer.py tests/test_api.py
+```
+
+实测通过：**103 passed、30 subtests passed、9.66s**。
+
+完整后端测试，于 2026-09-24 在提交 `c6747fb` 上实测通过：
+
+```powershell
+uv run --with pytest python -m pytest -q
+```
+
+**290 passed、84 subtests passed、12.96s**（新增 59 项：核验 43、接口 12、回答 1、配置 3，
+另有 30 项 subTest）。
+
+### 默认开关与启用方法
+
+| 环境变量 | 默认值 | 说明 |
 |---|---|---|
-| 04 答案证据核验 | `code/rag_verification.py`、`code/tests/test_verification.py` | 均不存在 |
-| 05 Adaptive 路由 | `code/rag_router.py`、`code/rag_pipeline.py`、`code/tests/test_router.py`、`code/tests/test_pipeline.py` | 均不存在 |
+| `MCWIKI_ANSWER_VERIFICATION` | `none` | 改 `verify` 启用 |
+| `MCWIKI_VERIFICATION_TIMEOUT` | `15` | 单次核验调用超时秒数 |
+| `MCWIKI_MAX_ANSWER_ATTEMPTS` | `2` | 硬边界 1～2，超出报错；1 表示只核验不重写 |
 
-依赖关系为串行：04 依赖 03（已合并），05 依赖 04。04 可直接基于当前 `main`（`e1ef515`）开工，
-按共同规则第 1 条另建分支。
+核验调用复用回答模型的 DeepSeek 配置（`DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` /
+`DEEPSEEK_MODEL`），不需要额外配置；核验器 thinking 固定关闭
+（`DEFAULT_VERIFICATION_THINKING_TYPE`），理由与任务 01/03 相同：核验发生在每次生成之后，
+延迟由每个请求承担。
+
+### 核验流程与控制流边界
+
+```text
+生成完整草稿（collect_answer，不向浏览器发送）
+  → 确定性引用检查（解析 [n]）
+      ├─ 没有引用 / 引用越界 → 直接判失败，不调用核验模型
+      └─ 引用合法            → 调用核验模型，返回原子声明与逐条支持判断
+  → 合并判定：supported（引用合法 ∧ 声明非空 ∧ 无不受支持声明）∧ useful（覆盖全部子问题）
+      ├─ 通过 → 发送该草稿
+      └─ 失败且还有版本配额 → 用同一份证据 + 核验发现重写一次 → 再次核验
+                                ├─ 通过 → 发送重写稿
+                                └─ 仍失败 → 拒答（insufficientEvidence）
+```
+
+- `supported` 由代码计算，不向模型索取：模型只能逐条给声明与支持判断，无法把整篇草稿
+  判为「可用」；
+- 确定性引用检查先于模型调用，越界引用的草稿不会消耗核验调用
+  （`test_an_invented_citation_is_stopped_before_the_verifier_is_called`）；
+- 生成与核验各最多两次（`AnswerVerificationCoordinator` 的 `max_attempts` 同时硬编码在
+  `MAX_ANSWER_ATTEMPTS` 中），模型输出无法扩大；
+- 重写只能复用最终证据：`collect_answer` 的第二版请求体以第一版逐字为前缀，只追加
+  `rewrite_feedback()` 生成的有限指令（≤900 字符、≤6 条问题），核验器不可用时连重写都不会
+  触发；
+- 核验器故障（异常、超时、非法 JSON、缺键）不是失败而是「不可用」：保留当前草稿、记录
+  `WARNING`、`done` 标记 `verification=unavailable`，不伪装为已验证；
+- 空证据路径不受影响：`sufficient=false` 时仍在生成之前拒答，不进入核验。
+
+### 失败回退
+
+已实现且有对应测试：核验器抛异常与返回非法结构
+（`test_a_broken_verifier_keeps_the_draft_without_claiming_it_was_checked`）、第二次核验超时
+（`test_a_verifier_that_breaks_on_the_second_check_keeps_the_rewrite`）、模型回复缺
+`claims`/`useful` 键、类型错误、编号非正整数、文本超长
+（`test_rejects_every_malformed_reply` 的 20 项 subTest）、传输异常与错误状态
+（`test_transport_failures_and_timeouts_raise_the_same_error`）、开关打开但没有核验器
+（`test_verification_without_a_verifier_falls_back_to_the_draft`）、开关打开但回答客户端
+不支持整稿收集（`test_verification_needs_an_answer_client_that_can_collect_a_draft`）。
+所有回退都保持任务 03 的流式行为，并记录 `WARNING`。
+
+### 验收标准逐条
+
+| 验收标准 | 结论 | 依据 |
+|---|---|---|
+| 引用 `[n]` 必须指向实际证据编号，越界编号不会进入最终答案 | 通过 | `citation_audit()` 先于模型核验执行；`test_an_out_of_range_citation_never_passes`、`test_a_claim_that_points_at_an_unknown_number_never_passes`、接口层 `test_an_invented_citation_is_stopped_before_the_verifier_is_called`（断言 `"[9]" not in response.text`） |
+| 每个模型识别出的关键事实都有引用并被对应证据支持 | 通过 | `build_verification()` 把「无引用」「引用不存在」「模型判为不受支持」的声明一律计入 unsupported；`test_a_claim_without_a_citation_never_passes`、`test_an_unsupported_claim_is_reported_with_its_reason`、接口层 `test_a_rejected_draft_never_reaches_the_browser` |
+| 首稿失败时最多重写一次，重写后必定再次核验 | 通过 | `test_a_failed_first_draft_is_rewritten_once_and_checked_again`（两次生成、两次核验，且第二次核验读到的是重写稿）、`test_a_single_attempt_budget_never_rewrites`、接口层 `test_a_rejected_draft_never_reaches_the_browser` |
+| 第二版仍失败时返回明确的资料不足状态 | 通过 | `test_a_second_failure_withholds_the_rewrite`；接口层 `test_a_second_failure_becomes_an_explicit_insufficient_status`（`delta` 为 `INSUFFICIENT_EVIDENCE_MESSAGE`，`done` 为 `{"status":"insufficientEvidence","verification":"unsupported"}`） |
+| 浏览器不会收到后来被判失败的初稿内容 | 通过 | 开启核验时先 `collect_answer` 再发送，只有最终稿进入 `delta`；接口层断言被判失败的初稿文本不出现在整段响应中 |
+| 核验关闭时回答行为与任务 03 基线一致 | 通过 | `test_the_switch_off_streams_the_baseline_answer`（注入了核验器也不调用、`done` 无 `verification` 字段）、`test_settings.py` 的默认值用例；03 的既有接口用例全部保持通过 |
+| 核验器异常路径有测试并带明确状态 | 通过 | `test_a_broken_verifier_answers_with_an_unavailable_status`（`verification=unavailable`，且错误详情不进入响应）、`test_verification_without_a_verifier_falls_back_to_the_draft` |
+| 完整后端测试通过 | 通过 | 290 passed、84 subtests passed（2026-09-24 实测） |
+
+任务文档另有两项要求在测试中固化：核验对象是完整草稿（`collect_answer` 把整条已校验流拼成
+一个字符串，`test_collects_the_whole_draft_and_appends_rewrite_feedback`）、子问题遗漏也算
+失败并可触发一次重写（`test_a_supported_answer_that_misses_a_sub_question_is_not_acceptable`、
+`test_a_sub_question_that_was_never_answered_is_rewritten`）。
+
+### 未解决风险
+
+1. **没有 18 题对照评测**，也无法判断开启核验后的净收益；每个被核验的请求至少多一次核验
+   调用，重写时再多一次生成与一次核验，成本确定而收益未测，默认保持关闭。
+2. **从未调用真实 DeepSeek 跑过**：所有核验器测试都使用假 HTTP 客户端，核验提示词的实际
+   判定质量、真实模型的 `claims` 拆分粒度与 true/false 分布均未验证。若真实核验器对正常回答
+   习惯性返回空 `claims`，流程会判为失败并触发重写甚至拒答——这是当前最需要真实模型验证的
+   假设。
+3. `max_answer_attempts` 上限 2 同时存在于 `rag_settings.py` 与 `AnswerVerificationCoordinator`
+   校验中（与任务 01/03 的同类常量一样），改动需同步两处。
+4. 开启核验后首字节延迟增加：整稿生成完成后才开始发送 `delta`，前端在核验结束前只能看到
+   `sources`。
+5. 核验只覆盖回答文本与引用，不核验 `sources` 卡片本身；`sources` 仍按任务 03 的规则在生成
+   之前发送，因此「拒答时浏览器已看到来源卡片」这一组合只可能出现在核验失败路径上。
+
+### 交付给任务 05 的接口
+
+`AnswerVerificationCoordinator(answerer=…, verifier=…, max_attempts=…).run(question, evidence)`
+返回 `VerificationResult(answer, verification, answer_attempts)`：只接收「原始用户问题 + 最终
+证据」，返回可发送的答案或一个应被拒答的结果（`withheld` 为真），不涉及检索、查询规划或
+路由。`answer_verification=none` 时该流程整体不存在，`/answers` 回到任务 03 的流式基线。
+任务 05 的 Adaptive Router 只负责选择取证路径，不得复制核验逻辑。
+
+---
+
+## 任务 05：未开始
+
+无任何代码、测试或配置，`code/rag_router.py`、`code/rag_pipeline.py`、
+`code/tests/test_router.py`、`code/tests/test_pipeline.py` 均不存在。依赖 04（已实现，分支
+`codex/ragv2-answer-verification`，提交 `c6747fb`）；应等 04 合并到 `main` 后再基于 `main`
+开工，按共同规则第 1 条另建分支。
 
 任务 05 另需修改 `README.md` 的最终流程与配置说明，届时本文件与根目录 README 都需同步更新。
 
@@ -333,12 +475,13 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 
 ## 全局缺口
 
-1. **01、02、03 都没有 18 题对照评测**，三者的默认开关因此都停留在关闭状态。开启任何一个
+1. **01～04 都没有 18 题对照评测**，四者的默认开关因此都停留在关闭状态。开启任何一个
    之前，都应按根目录 README 的评测要求补齐对照并保留历史结果。
-2. **02 的真实模型烟雾测试缺失**，03 也**从未调用真实 DeepSeek 评估器**，这两类「真实模型
-   验证」在仓库内都没有任何运行记录。
-3. 任务文档 `01-…md`、`02-…md`、`03-…md` 的验收复选框仍是未勾选状态。本文件记录了逐条结论，
-   但三份任务文档本身未更新，新读者仍会看到全空的复选框。
+2. **02 的真实模型烟雾测试缺失**，03 也**从未调用真实 DeepSeek 评估器**，04 同样
+   **从未调用真实 DeepSeek 核验器**，这三类「真实模型验证」在仓库内都没有任何运行记录。
+   04 的核验提示词质量与拒答率尤其需要真实运行才能判断（见任务 04「未解决风险」第 2 条）。
+3. 任务文档 `01-…md`～`04-…md` 的验收复选框仍是未勾选状态。本文件记录了逐条结论，
+   但四份任务文档本身未更新，新读者仍会看到全空的复选框。
 4. 评测集 v2 的 48 题中仅 7 题经人工确认，若后续任务要做定量对比，标注状态会是一个限制。
 5. `docs/ARCHITECTURE.md` 记录的是 `main` 上的结构，03 合并后它有两处过期：一是缺少纠正检索
    这一层（第 2 节请求链路、第 3 节分层、第 4 节可插拔维度表、第 5 节降级表各需补一行），
@@ -347,6 +490,8 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
    （已移入新的 `_collect_evidence`，239 行起）、装配点 174→180、`/search` 检索 319→379、
    SSE 事件段 398-420→451 起；`rag_reranker.py` 的 `build_reranker` 258→264、
    `RerankingRetriever` 272→278）。该文件按自身约定在专门的文档提交里更新，本次未改动。
+   04 使漂移进一步扩大：核验这一层、`rag_verification.py` 与 `rag_answer.py` 的
+   `collect_answer` 均未进入该文件，`rag_api.py` 的行号再次整体偏移。
 
 ## 如何更新本文件
 
