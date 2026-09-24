@@ -234,7 +234,7 @@ uv sync --extra reranker          # 安装 sentence-transformers/torch（可选�
 ## 测试
 
 ```powershell
-# 后端：20 个测试文件、290 项用例，全部离线，不访问网络与真实数据库
+# 后端：20 个测试文件、292 项用例，全部离线，不访问网络与真实数据库
 cd code
 uv run --with pytest python -m pytest
 

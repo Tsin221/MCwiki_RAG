@@ -1252,29 +1252,27 @@ class VerifiedAnswerApiTests(unittest.TestCase):
         self.bm25_path = Path(directory.name) / "bm25.db"
         self.bm25_path.touch()
 
-    def settings(self, *, verification=VERIFICATION_ENABLED, max_answer_attempts=2):
-        return RetrievalSettings(
-            bm25_path=self.bm25_path,
-            answer_verification=verification,
-            max_answer_attempts=max_answer_attempts,
-        )
-
     def build_client(
         self,
         answer_client,
         verifier=None,
         *,
+        assessor=None,
         retrieval=None,
+        corrective="none",
         verification=VERIFICATION_ENABLED,
         max_answer_attempts=2,
     ):
         app = create_app(
             retriever=retrieval or RecordingRetriever({self.question: [stub_result("a")]}),
             answer_client=answer_client,
+            corrective_assessor=assessor,
             answer_verifier=verifier,
         )
-        app.state.retrieval_settings = self.settings(
-            verification=verification,
+        app.state.retrieval_settings = RetrievalSettings(
+            bm25_path=self.bm25_path,
+            corrective=corrective,
+            answer_verification=verification,
             max_answer_attempts=max_answer_attempts,
         )
         app.state.qdrant = SimpleNamespace(
@@ -1289,6 +1287,11 @@ class VerifiedAnswerApiTests(unittest.TestCase):
         )
         return TestClient(app)
 
+    def sources_of(self, response):
+        return next(
+            data for event, data in parse_sse(response.text) if event == "sources"
+        )
+
     def post_answer(self, client):
         return client.post("/answers", json={"question": self.question})
 
@@ -1297,6 +1300,58 @@ class VerifiedAnswerApiTests(unittest.TestCase):
             data["text"]
             for event, data in parse_sse(response.text)
             if event == "delta"
+        )
+
+    def test_a_refused_answer_is_never_generated_or_verified(self):
+        answer_client = ScriptedAnswerClient([self.draft])
+        verifier = ScriptedModelVerifier([verdict(claim("延迟信号"))])
+
+        response = self.post_answer(
+            self.build_client(
+                answer_client, verifier, retrieval=RecordingRetriever({})
+            )
+        )
+
+        self.assertEqual(self.sources_of(response), {"items": []})
+        self.assertEqual(answer_client.calls, [])
+        self.assertEqual(verifier.calls, [])
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "insufficientEvidence"}))
+
+    def test_verification_follows_corrective_retrieval_on_the_same_evidence(self):
+        retriever = RecordingRetriever(
+            {self.question: [stub_result("a"), stub_result("b")]}
+        )
+        assessor = ScriptedAssessor([sufficient()])
+        answer_client = ScriptedAnswerClient([self.draft])
+        verifier = ScriptedModelVerifier([verdict(claim("红石中继器可以延迟红石信号"))])
+
+        response = self.post_answer(
+            self.build_client(
+                answer_client,
+                verifier,
+                assessor=assessor,
+                retrieval=retriever,
+                corrective=CORRECTIVE_ENABLED,
+            )
+        )
+
+        # One corrective round settles the evidence; verification reads exactly that.
+        self.assertEqual([call["query"] for call in retriever.calls], [self.question])
+        self.assertEqual(len(assessor.calls), 1)
+        self.assertEqual(len(verifier.calls), 1)
+        self.assertEqual(verifier.calls[0]["question"], self.question)
+        self.assertEqual(verifier.calls[0]["answer"], self.draft)
+        self.assertEqual(
+            [item.chunk_id for item in verifier.calls[0]["evidence"]], ["a", "b"]
+        )
+        self.assertEqual(
+            [item["chunkId"] for item in self.sources_of(response)["items"]],
+            ["a", "b"],
+        )
+        self.assertEqual(self.text_of(response), self.draft)
+        self.assertEqual(
+            parse_sse(response.text)[-1],
+            ("done", {"status": "answered", "verification": VERIFICATION_PASSED}),
         )
 
     def test_the_switch_off_streams_the_baseline_answer(self):

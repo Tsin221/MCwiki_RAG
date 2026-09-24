@@ -321,6 +321,7 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 ### 分支与提交
 
 - `c6747fb` feat: add bounded answer verification with one rewrite
+- `b973627` docs: record task 04 answer verification status
 
 分支 `codex/ragv2-answer-verification`，基于 `main` 的 `e1ef515`（任务 03 已合并），**尚未
 合并到 `main`**。
@@ -343,7 +344,7 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
   `_verification_status()`，`create_app()` 增加 `answer_verifier` 注入点，`_default_lifespan`
   装配核验器
 - `code/rag_settings.py`：核验开关、核验超时、最大答案版本数
-- `code/tests/test_api.py`（新增 12 项用例）、`code/tests/test_answer.py`（新增 1 项）、
+- `code/tests/test_api.py`（新增 14 项用例）、`code/tests/test_answer.py`（新增 1 项）、
   `code/tests/test_settings.py`（新增 3 项）、`.env.example`、`README.md`
 
 未改动检索、重排、chunk、证据编号与相邻合并规则；未改动前端；未加入第三轮检索或自由循环。
@@ -356,7 +357,7 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 uv run --with pytest python -m pytest -q tests/test_verification.py tests/test_answer.py tests/test_api.py
 ```
 
-实测通过：**103 passed、30 subtests passed、9.66s**。
+实测通过：**105 passed、30 subtests passed、8.42s**。
 
 完整后端测试，于 2026-09-24 在提交 `c6747fb` 上实测通过：
 
@@ -364,7 +365,7 @@ uv run --with pytest python -m pytest -q tests/test_verification.py tests/test_a
 uv run --with pytest python -m pytest -q
 ```
 
-**290 passed、84 subtests passed、12.96s**（新增 59 项：核验 43、接口 12、回答 1、配置 3，
+**292 passed、84 subtests passed、12.99s**（新增 61 项：核验 43、接口 14、回答 1、配置 3，
 另有 30 项 subTest）。
 
 ### 默认开关与启用方法
@@ -436,6 +437,11 @@ uv run --with pytest python -m pytest -q
 一个字符串，`test_collects_the_whole_draft_and_appends_rewrite_feedback`）、子问题遗漏也算
 失败并可触发一次重写（`test_a_supported_answer_that_misses_a_sub_question_is_not_acceptable`、
 `test_a_sub_question_that_was_never_answered_is_rewritten`）。
+
+与任务 03 的衔接同样有测试：两者同时开启时只检索一轮，核验器读到的证据与 `sources` 事件、
+生成模型输入三者一致（`test_verification_follows_corrective_retrieval_on_the_same_evidence`），
+空证据路径既不生成也不核验、且 `done` 不带 `verification` 字段
+（`test_a_refused_answer_is_never_generated_or_verified`）。
 
 ### 未解决风险
 
