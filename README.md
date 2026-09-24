@@ -13,6 +13,8 @@ SQLite FTS5 BM25  +  Qdrant 向量召回
                   ↓
              RRF 排名融合
                   ↓
+        Cross-Encoder 精排（可选）
+                  ↓
           证据去重与上下文预算
                   ↓
      DeepSeek 流式证据约束回答（SSE）
@@ -29,6 +31,7 @@ SQLite FTS5 BM25  +  Qdrant 向量召回
 | 语义检索 | Ollama `qwen3-embedding:0.6b`，1024 维 |
 | 向量数据库 | Qdrant，集合 `mcwiki_chunks`，Cosine 距离 |
 | 融合方式 | RRF（Reciprocal Rank Fusion） |
+| 候选精排 | 可选 Cross-Encoder（默认 `BAAI/bge-reranker-base`），关闭时保持 RRF 顺序 |
 | 回答生成 | DeepSeek `deepseek-v4-pro`，HTTPX 流式调用 |
 | 前端 | React + TypeScript + Vite + React Three Fiber |
 
@@ -113,6 +116,23 @@ npm run dev
 > 必须使用 `localhost`。后端使用带 Cookie 的 CORS，浏览器 Origin 必须与 `.env` 中的
 > `FRONTEND_ORIGIN` 完全一致。仅检查端口监听无法确认连到的是本项目实例。
 
+### 4. 可选：启用 Cross-Encoder 精排
+
+默认关闭（`MCWIKI_RERANKER=none`），`/answers` 直接使用 RRF 顺序。开启后链路变为
+「召回 `MCWIKI_CANDIDATE_LIMIT` 个候选 → 用真实 Cross-Encoder 对「问题、`title + text`」
+配对打分 → 保留 `MCWIKI_EVIDENCE_LIMIT` 个 → 证据组装」。Cross-Encoder 只能调整已经召回
+候选的顺序，不能找回召回阶段遗漏的证据。
+
+```powershell
+cd code
+uv sync --extra reranker          # 安装 sentence-transformers/torch（可选依赖）
+# 在 .env 中设置 MCWIKI_RERANKER=cross_encoder 后启动服务
+```
+
+模型在应用启动时加载一次并常驻；模型未安装、加载失败或推理异常时自动回退到 RRF 顺序并
+记录日志，`/ready` 会报告 `reranker: unavailable`。无法访问 `huggingface.co` 的网络可先
+设置 `HF_ENDPOINT=https://hf-mirror.com` 下载模型。
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -120,7 +140,7 @@ npm run dev
 | POST | `/search` | 混合检索，返回两路召回经 RRF 融合后的候选证据 |
 | POST | `/answers` | 证据约束的流式回答，SSE 事件为 `meta`、`sources`、`delta`、`done`，流中错误为 `error` |
 | GET | `/health` | 仅表示 API 进程存活 |
-| GET | `/ready` | 检查 BM25、目标 Qdrant collection 与回答服务配置 |
+| GET | `/ready` | 检查 BM25、目标 Qdrant collection、回答服务与精排配置 |
 
 交互式文档位于 <http://127.0.0.1:8000/docs>。缺少 DeepSeek Key 时 `/search` 仍可用，
 `/answers` 返回 `CONFIGURATION_ERROR`。
@@ -175,5 +195,6 @@ npm run build
 
 ## 当前不做
 
-限流、请求预算、监控、HTTPS Cookie 与滥用防护留到明确需要公开部署时再评估。当前不接入
-Reranker，不引入 LangGraph、多 Agent，也不使用 MySQL、Redis 或 Elasticsearch。
+限流、请求预算、监控、HTTPS Cookie 与滥用防护留到明确需要公开部署时再评估。Cross-Encoder
+精排已接入但默认关闭（`MCWIKI_RERANKER=none`），是否默认开启由固定 18 题回归决定；不引入
+LangGraph、多 Agent，也不使用 MySQL、Redis 或 Elasticsearch。

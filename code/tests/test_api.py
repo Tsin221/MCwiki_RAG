@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from rag_answer import AnswerConfigurationError, AnswerEvidence, ModelUnavailableError
 from rag_api import create_app
 from rag_query import QueryPlan, build_query_plan
+from rag_reranker import CrossEncoderReranker, NoopReranker
 from rag_retrieval.hybrid import HybridResult
 from rag_settings import RetrievalSettings, STEP_BACK_QUERY_STRATEGY
 
@@ -464,7 +465,7 @@ class StepBackAnswerApiTests(unittest.TestCase):
         )
         self.assertEqual(
             [call["limit"] for call in retriever.calls],
-            [RetrievalSettings().evidence_limit],
+            [RetrievalSettings().candidate_limit],
         )
         self.assertEqual(
             [item["chunkId"] for item in self.sources_of(response)["items"]],
@@ -614,6 +615,200 @@ class StepBackAnswerApiTests(unittest.TestCase):
             [item["chunkId"] for item in response.json()["results"]],
             ["original"],
         )
+
+
+class BrokenScorer:
+    """A Cross-Encoder that fails at inference time."""
+
+    def predict(self, pairs, batch_size=32, show_progress_bar=None):
+        raise RuntimeError("model inference failed")
+
+
+class RecordingReranker:
+    """Order the pool by a scripted chunk order and record every request."""
+
+    def __init__(self, order=()):
+        self.calls = []
+        self.order = list(order)
+
+    def readiness(self):
+        return "ok"
+
+    def rerank(self, question, candidates, *, limit):
+        self.calls.append(
+            {"question": question, "candidates": list(candidates), "limit": limit}
+        )
+        positions = {chunk_id: index for index, chunk_id in enumerate(self.order)}
+        ranked = sorted(
+            candidates,
+            key=lambda item: positions.get(item.chunk_id, len(positions)),
+        )
+        return ranked[:limit]
+
+
+def missing_model(_model_name):
+    raise OSError("weights are not available locally")
+
+
+class RerankerAnswerApiTests(unittest.TestCase):
+    question = "红石中继器有什么作用？"
+    abstract_question = "红石信号的传输机制是什么"
+
+    def post_answer(self, client, question=None):
+        return client.post(
+            "/answers",
+            json={"question": self.question if question is None else question},
+        )
+
+    def sources_of(self, response):
+        return next(
+            data for event, data in parse_sse(response.text) if event == "sources"
+        )
+
+    def test_answers_recalls_a_candidate_pool_then_answers_in_reranked_order(self):
+        pool = [stub_result("a"), stub_result("b"), stub_result("c")]
+        retriever = RecordingRetriever({self.question: pool})
+        reranker = RecordingReranker(["c"])
+
+        response = self.post_answer(
+            TestClient(
+                create_app(
+                    retriever=retriever,
+                    answer_client=FakeAnswerClient(),
+                    reranker=reranker,
+                )
+            )
+        )
+
+        self.assertEqual(
+            [call["limit"] for call in retriever.calls],
+            [RetrievalSettings().candidate_limit],
+        )
+        self.assertEqual(reranker.calls[0]["question"], self.question)
+        self.assertEqual(
+            [item.chunk_id for item in reranker.calls[0]["candidates"]],
+            ["a", "b", "c"],
+        )
+        self.assertEqual(reranker.calls[0]["limit"], RetrievalSettings().evidence_limit)
+        self.assertEqual(
+            [item["chunkId"] for item in self.sources_of(response)["items"]],
+            ["c", "a", "b"],
+        )
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+
+    def test_a_broken_cross_encoder_still_answers_from_the_rrf_order(self):
+        retriever = RecordingRetriever(
+            {self.question: [stub_result("a"), stub_result("b")]}
+        )
+
+        with self.assertLogs("rag_reranker", level="WARNING"):
+            response = self.post_answer(
+                TestClient(
+                    create_app(
+                        retriever=retriever,
+                        answer_client=FakeAnswerClient(),
+                        reranker=CrossEncoderReranker(scorer=BrokenScorer()),
+                    )
+                )
+            )
+
+        self.assertEqual(
+            [item["chunkId"] for item in self.sources_of(response)["items"]],
+            ["a", "b"],
+        )
+        self.assertEqual(parse_sse(response.text)[-1], ("done", {"status": "answered"}))
+
+    def test_the_reranker_scores_the_user_question_not_the_step_back_question(self):
+        retriever = RecordingRetriever(
+            {
+                self.question: [stub_result("original")],
+                self.abstract_question: [stub_result("abstract")],
+            }
+        )
+        reranker = RecordingReranker()
+
+        self.post_answer(
+            TestClient(
+                create_app(
+                    retriever=retriever,
+                    answer_client=FakeAnswerClient(),
+                    query_planner=FakeQueryPlanner([self.abstract_question]),
+                    reranker=reranker,
+                )
+            )
+        )
+
+        self.assertEqual(
+            [call["query"] for call in retriever.calls],
+            [self.question, self.abstract_question],
+        )
+        self.assertEqual(reranker.calls[0]["question"], self.question)
+        self.assertEqual(
+            [item.chunk_id for item in reranker.calls[0]["candidates"]],
+            ["abstract", "original"],
+        )
+
+    def test_ready_reports_the_disabled_reranker(self):
+        client = TestClient(
+            create_app(
+                retriever=RecordingRetriever(),
+                answer_client=FakeAnswerClient(),
+                reranker=NoopReranker(),
+            )
+        )
+
+        body = client.get("/ready")
+
+        self.assertEqual(body.status_code, 200)
+        self.assertEqual(body.json()["reranker"], "disabled")
+
+    def test_ready_reports_a_cross_encoder_that_could_not_load(self):
+        with self.assertLogs("rag_reranker", level="WARNING"):
+            reranker = CrossEncoderReranker(loader=missing_model)
+        client = TestClient(
+            create_app(
+                retriever=RecordingRetriever(),
+                answer_client=FakeAnswerClient(),
+                reranker=reranker,
+            )
+        )
+
+        body = client.get("/ready")
+
+        self.assertEqual(body.status_code, 503)
+        self.assertEqual(body.json()["reranker"], "unavailable")
+
+    def test_the_default_startup_path_honours_an_injected_reranker(self):
+        reranker = RecordingReranker()
+        with tempfile.TemporaryDirectory() as directory:
+            bm25_path = Path(directory) / "bm25.db"
+            bm25_path.touch()
+            settings = RetrievalSettings(bm25_path=bm25_path)
+            collection = SimpleNamespace(
+                config=SimpleNamespace(
+                    params=SimpleNamespace(vectors=SimpleNamespace(size=settings.vector_size))
+                ),
+                status="green",
+            )
+            qdrant = SimpleNamespace(
+                get_collection=lambda name: collection,
+                close=lambda: None,
+            )
+            with patch("rag_api.RetrievalSettings.from_env", return_value=settings), patch(
+                "rag_api._build_default_retriever",
+                return_value=(
+                    RecordingRetriever(),
+                    SimpleNamespace(close=lambda: None),
+                    qdrant,
+                ),
+            ), patch(
+                "rag_api.DeepSeekSettings.from_env",
+                side_effect=AnswerConfigurationError("missing"),
+            ):
+                with TestClient(create_app(reranker=reranker)) as client:
+                    body = client.get("/ready")
+
+        self.assertEqual(body.json()["reranker"], "ok")
 
 
 if __name__ == "__main__":

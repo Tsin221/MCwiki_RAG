@@ -59,6 +59,46 @@ class RuntimeSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "MCWIKI_QUERY_PLAN_THINKING_TYPE"):
             RetrievalSettings.from_env({"MCWIKI_QUERY_PLAN_THINKING_TYPE": " "})
 
+    def test_reranking_defaults_keep_the_fused_ranking(self):
+        settings = RetrievalSettings.from_env({})
+
+        self.assertEqual(settings.reranker, "none")
+        self.assertEqual(settings.reranker_model, "BAAI/bge-reranker-base")
+        self.assertEqual(settings.candidate_limit, 20)
+        self.assertEqual(settings.evidence_limit, 8)
+
+    def test_reranking_options_can_be_overridden(self):
+        settings = RetrievalSettings.from_env({
+            "MCWIKI_RERANKER": "cross_encoder",
+            "MCWIKI_RERANKER_MODEL": "BAAI/bge-reranker-v2-m3",
+            "MCWIKI_CANDIDATE_LIMIT": "30",
+        })
+
+        self.assertEqual(settings.reranker, "cross_encoder")
+        self.assertEqual(settings.reranker_model, "BAAI/bge-reranker-v2-m3")
+        self.assertEqual(settings.candidate_limit, 30)
+
+    def test_rejects_invalid_reranking_settings(self):
+        with self.assertRaisesRegex(ValueError, "MCWIKI_RERANKER"):
+            RetrievalSettings.from_env({"MCWIKI_RERANKER": "llm_reranker"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_RERANKER_MODEL"):
+            RetrievalSettings.from_env({"MCWIKI_RERANKER_MODEL": "  "})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_CANDIDATE_LIMIT"):
+            RetrievalSettings.from_env({"MCWIKI_CANDIDATE_LIMIT": "0"})
+        with self.assertRaisesRegex(ValueError, "MCWIKI_CANDIDATE_LIMIT"):
+            RetrievalSettings.from_env({
+                "MCWIKI_RERANKER": "cross_encoder",
+                "MCWIKI_CANDIDATE_LIMIT": "4",
+            })
+
+    def test_an_oversized_keep_count_is_only_rejected_when_reranking_is_enabled(self):
+        settings = RetrievalSettings.from_env({
+            "MCWIKI_CANDIDATE_LIMIT": "4",
+            "MCWIKI_EVIDENCE_LIMIT": "8",
+        })
+
+        self.assertEqual((settings.candidate_limit, settings.evidence_limit), (4, 8))
+
     def test_answer_service_options_can_be_overridden(self):
         settings = ServiceSettings.from_env({
             "MCWIKI_DEEPSEEK_READ_TIMEOUT": "45",

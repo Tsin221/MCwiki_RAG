@@ -28,6 +28,12 @@ MIN_RETRIEVAL_QUERIES = 1
 MAX_RETRIEVAL_QUERIES = 2
 DEFAULT_QUERY_PLAN_TIMEOUT = 15.0
 DEFAULT_QUERY_PLAN_THINKING_TYPE = "disabled"
+NOOP_RERANKER = "none"
+CROSS_ENCODER_RERANKER = "cross_encoder"
+SUPPORTED_RERANKERS: tuple[str, ...] = (NOOP_RERANKER, CROSS_ENCODER_RERANKER)
+DEFAULT_RERANKER = NOOP_RERANKER
+DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-base"
+DEFAULT_CANDIDATE_LIMIT = 20
 INSUFFICIENT_EVIDENCE_MESSAGE = "现有知识库没有足够资料支持可靠回答。"
 
 
@@ -75,6 +81,9 @@ class RetrievalSettings:
     max_retrieval_queries: int = MAX_RETRIEVAL_QUERIES
     query_plan_timeout: float = DEFAULT_QUERY_PLAN_TIMEOUT
     query_plan_thinking_type: str = DEFAULT_QUERY_PLAN_THINKING_TYPE
+    reranker: str = DEFAULT_RERANKER
+    reranker_model: str = DEFAULT_RERANKER_MODEL
+    candidate_limit: int = DEFAULT_CANDIDATE_LIMIT
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> RetrievalSettings:
@@ -98,6 +107,22 @@ class RetrievalSettings:
         ).strip()
         if not query_plan_thinking_type:
             raise ValueError("MCWIKI_QUERY_PLAN_THINKING_TYPE must not be blank")
+        reranker = values.get("MCWIKI_RERANKER", DEFAULT_RERANKER).strip()
+        if reranker not in SUPPORTED_RERANKERS:
+            raise ValueError("MCWIKI_RERANKER is invalid")
+        reranker_model = values.get(
+            "MCWIKI_RERANKER_MODEL", DEFAULT_RERANKER_MODEL
+        ).strip()
+        if not reranker_model:
+            raise ValueError("MCWIKI_RERANKER_MODEL must not be blank")
+        evidence_limit = _positive_int(values, "MCWIKI_EVIDENCE_LIMIT", DEFAULT_EVIDENCE_LIMIT)
+        candidate_limit = _positive_int(
+            values, "MCWIKI_CANDIDATE_LIMIT", DEFAULT_CANDIDATE_LIMIT
+        )
+        if reranker != NOOP_RERANKER and candidate_limit < evidence_limit:
+            raise ValueError(
+                "MCWIKI_CANDIDATE_LIMIT must be at least MCWIKI_EVIDENCE_LIMIT"
+            )
         return cls(
             qdrant_url=values.get("MCWIKI_QDRANT_URL", DEFAULT_QDRANT_URL).strip(),
             collection=values.get("MCWIKI_QDRANT_COLLECTION", DEFAULT_COLLECTION).strip(),
@@ -106,7 +131,7 @@ class RetrievalSettings:
             bm25_path=Path(values.get("MCWIKI_BM25_DB_PATH", str(DEFAULT_BM25_PATH))).resolve(),
             bm25_limit=_positive_int(values, "MCWIKI_BM25_LIMIT", DEFAULT_BM25_LIMIT),
             semantic_limit=_positive_int(values, "MCWIKI_SEMANTIC_LIMIT", DEFAULT_SEMANTIC_LIMIT),
-            evidence_limit=_positive_int(values, "MCWIKI_EVIDENCE_LIMIT", DEFAULT_EVIDENCE_LIMIT),
+            evidence_limit=evidence_limit,
             max_context_chars=_positive_int(values, "MCWIKI_CONTEXT_BUDGET", DEFAULT_MAX_CONTEXT_CHARS),
             evidence_strategy=evidence_strategy,
             query_strategy=query_strategy,
@@ -121,6 +146,9 @@ class RetrievalSettings:
                 values, "MCWIKI_QUERY_PLAN_TIMEOUT", DEFAULT_QUERY_PLAN_TIMEOUT
             ),
             query_plan_thinking_type=query_plan_thinking_type,
+            reranker=reranker,
+            reranker_model=reranker_model,
+            candidate_limit=candidate_limit,
         )
 
 

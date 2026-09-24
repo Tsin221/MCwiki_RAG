@@ -13,6 +13,13 @@ SearchRoute = Callable[[str, int], list[RetrievalResult]]
 
 @dataclass(frozen=True, slots=True)
 class HybridResult:
+    """One fused candidate.
+
+    ``score`` is always the RRF score. A reranker stores its own, unrelated score
+    in ``reranker_score`` so the two can never be confused; the retrieval metadata
+    stays attached to the chunk it belongs to.
+    """
+
     chunk_id: str
     title: str
     text: str
@@ -22,6 +29,7 @@ class HybridResult:
     semantic_rank: int | None
     document_id: str | None = None
     chunk_index: int | None = None
+    reranker_score: float | None = None
 
 
 @dataclass(slots=True)

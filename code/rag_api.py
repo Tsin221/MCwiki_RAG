@@ -27,6 +27,14 @@ from rag_answer import (
     build_evidence,
 )
 from rag_query import OriginalQueryPlanner, QueryPlanner, build_query_planner
+from rag_reranker import (
+    DISABLED as RERANKER_DISABLED,
+    READY as RERANKER_READY,
+    NoopReranker,
+    Reranker,
+    RerankingRetriever,
+    build_reranker,
+)
 from rag_retrieval.hybrid import HybridResult, HybridRetriever
 from rag_retrieval.factory import build_default_retriever as _build_default_retriever
 from rag_retrieval.multi_query import MultiQueryRetriever
@@ -113,6 +121,12 @@ def _retrieval_checks(app: FastAPI) -> dict[str, str]:
     return {"bm25": bm25, "qdrant": qdrant}
 
 
+def _reranker_check(app: FastAPI) -> str:
+    """Report whether a configured Cross-Encoder is loaded and usable."""
+    reranker: Reranker | None = getattr(app.state, "reranker", None)
+    return RERANKER_DISABLED if reranker is None else reranker.readiness()
+
+
 def _default_lifespan() -> Any:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -153,9 +167,16 @@ def _default_lifespan() -> Any:
             max_queries=settings.max_retrieval_queries,
             thinking_type=settings.query_plan_thinking_type,
         )
-        app.state.query_retriever = MultiQueryRetriever(
-            retriever=retriever,
-            planner=planner,
+        reranker = getattr(app.state, "reranker", None) or build_reranker(
+            settings.reranker, model=settings.reranker_model
+        )
+        app.state.reranker = reranker
+        app.state.query_retriever = RerankingRetriever(
+            retriever=MultiQueryRetriever(
+                retriever=retriever,
+                planner=planner,
+            ),
+            reranker=reranker,
         )
         try:
             yield
@@ -205,6 +226,7 @@ def create_app(
     retriever: HybridRetriever | None = None,
     answer_client: AnswerStreamer | None = None,
     query_planner: QueryPlanner | None = None,
+    reranker: Reranker | None = None,
     cors_origins: Sequence[str] | None = None,
     cookie_secure: bool | None = None,
 ) -> FastAPI:
@@ -216,11 +238,18 @@ def create_app(
     app.state.service_settings = ServiceSettings.from_env()
     if query_planner is not None:
         app.state.query_planner = query_planner
+    if reranker is not None:
+        app.state.reranker = reranker
     if retriever is not None:
         app.state.retriever = retriever
-        app.state.query_retriever = MultiQueryRetriever(
-            retriever=retriever,
-            planner=query_planner or OriginalQueryPlanner(),
+        if reranker is None:
+            app.state.reranker = NoopReranker()
+        app.state.query_retriever = RerankingRetriever(
+            retriever=MultiQueryRetriever(
+                retriever=retriever,
+                planner=query_planner or OriginalQueryPlanner(),
+            ),
+            reranker=app.state.reranker,
         )
     if answer_client is not None:
         app.state.answer_client = answer_client
@@ -270,10 +299,21 @@ def create_app(
     def ready(request: Request) -> Response:
         checks = _retrieval_checks(request.app)
         answer_model = "configured" if getattr(request.app.state, "answer_client", None) else "unavailable"
-        available = all(value == "ok" for value in checks.values()) and answer_model == "configured"
+        reranker = _reranker_check(request.app)
+        available = (
+            all(value == "ok" for value in checks.values())
+            and answer_model == "configured"
+            and reranker in {RERANKER_READY, RERANKER_DISABLED}
+        )
         return JSONResponse(
             status_code=200 if available else 503,
-            content={"api": "ok", **checks, "answer_model": answer_model, "ready": available},
+            content={
+                "api": "ok",
+                **checks,
+                "answer_model": answer_model,
+                "reranker": reranker,
+                "ready": available,
+            },
         )
 
     @app.post("/search", response_model=SearchResponse)
@@ -337,6 +377,7 @@ def create_app(
                 body.question,
                 bm25_limit=retrieval_settings.bm25_limit,
                 semantic_limit=retrieval_settings.semantic_limit,
+                candidate_limit=retrieval_settings.candidate_limit,
                 limit=retrieval_settings.evidence_limit,
             )
         except Exception:
