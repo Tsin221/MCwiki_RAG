@@ -66,7 +66,7 @@ Reranker 和未来 Agentic RAG 属于后续阶段。当前唯一的期望来源�
 
 问答 Web MVP 规格见 `docs/specs/qa-web-mvp.md`，实现任务 1～7 已完成。评测方法、
 原始结果、人工复核和基线报告见 `data/evaluation/answer_quality/`。Three.js 前端
-视觉方案及完成记录见 `docs/frontend-threejs/`。
+视觉方案及完成记录见 `docs/过期文档/frontend-threejs/`。
 
 已实现：
 

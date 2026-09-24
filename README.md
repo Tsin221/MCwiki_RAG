@@ -6,6 +6,30 @@ RRF 融合后组成证据上下文，由 DeepSeek 依据证据流式生成带编
 > 本项目为非官方项目，与 Mojang Studios、Minecraft Wiki 均无关联。
 > 仓库中的 Wiki 数据与 Minecraft 相关素材遵循其各自的原始许可，详见 [NOTICE.md](NOTICE.md)。
 
+## 当前状态
+
+问答 Web MVP（任务 1～7）已完成并形成质量基线，处于「完善基础 RAG 能力 + 固定 18 题回归门槛」
+阶段。已实现：
+
+- 8,200 条原始资料清洗分块为 41,368 个文档块，建立 SQLite FTS5 BM25 索引与 Qdrant 向量索引；
+- BM25 + 语义双路召回、RRF 融合、相邻证据块合并与上下文预算控制；
+- 基于 SSE 的流式证据约束回答，带编号引用与来源卡片；
+- 查询规划可插拔：`original` 与 `step_back`（抽象问题 + 多查询 RRF 融合）；
+- 候选精排可插拔：`none` 与 `cross_encoder`（Cross-Encoder 重排候选池）。
+
+任务 03（纠正式检索）、04（答案核验）、05（自适应路由）尚未实现，规划见
+[`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md)。
+
+### 已知缺口
+
+- Cross-Encoder 精排已接入但**尚无 18 题 A/B 对比证据**，因此默认关闭；开启前应先按
+  [评测与回归](#评测与回归)完成一次对照。
+- `step_back` 查询规划同样缺少评测报告，默认保持 `original`。
+- 评测集 v2 共 48 题，其中仅 7 题经人工确认答案要点，其余为候选标注。
+- `POST /search` 走的是不含查询规划与精排的混合检索，与 `/answers` 不是同一条链路，
+  两者对同一问题可能给出不同排序。
+- 无鉴权、限流、监控与滥用防护，暂不具备公开部署条件。
+
 ## 技术链路
 
 ```text
@@ -44,7 +68,11 @@ code/                 FastAPI 后端、检索与入库模块、测试
   rag_api.py          POST /search 与 POST /answers
 frontend/             React 问答界面
 data/                 original_dataset.json（随仓库提供）与评测数据
-docs/                 方案、任务与交接文档
+docs/                 规格、规划与归档
+  specs/              问答 Web MVP 的接口与错误契约
+  tasks/ragV2/        当前任务包（03～05 待执行）
+  ideas/              暂缓实施的 Agentic RAG 方案
+  过期文档/           已结束或被现状取代的文档，仅作历史记录
 ```
 
 ## 快速开始
@@ -137,7 +165,7 @@ uv sync --extra reranker          # 安装 sentence-transformers/torch（可选�
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| POST | `/search` | 混合检索，返回两路召回经 RRF 融合后的候选证据 |
+| POST | `/search` | 混合检索，返回两路召回经 RRF 融合后的候选证据（不含查询规划与精排） |
 | POST | `/answers` | 证据约束的流式回答，SSE 事件为 `meta`、`sources`、`delta`、`done`，流中错误为 `error` |
 | GET | `/health` | 仅表示 API 进程存活 |
 | GET | `/ready` | 检查 BM25、目标 Qdrant collection、回答服务与精排配置 |
@@ -148,11 +176,11 @@ uv sync --extra reranker          # 安装 sentence-transformers/torch（可选�
 ## 测试
 
 ```powershell
-# 后端
+# 后端：18 个测试文件、185 项用例，全部离线，不访问网络与真实数据库
 cd code
 uv run --with pytest python -m pytest
 
-# 前端
+# 前端：3 个测试文件、10 项用例
 cd frontend
 npm run test -- --run
 npm run typecheck
@@ -165,26 +193,37 @@ npm run build
 （15 道可回答、3 道无答案）。任何涉及分块、Embedding、检索、融合、上下文、提示词或回答
 模型的改动，都要用同一套题与既有基线对比，并保留历史结果。
 
+检索基线（`data/evaluation/baseline-2026-07-29.json`，15 题）：
+
 | 指标 | 结果 |
 | --- | --- |
-| 检索 Hit@10（15 题） | 14/15（93.33%） |
+| 检索 Hit@10 | 14/15（93.33%） |
 | 检索 MRR@10 | 0.7911 |
-| 期望来源进入证据（18 题回归） | 15/15 |
+
+回答质量基线（`data/evaluation/answer_quality/baseline-2026-09-23-evidence-assembly.json`，18 题）：
+
+| 指标 | 结果 |
+| --- | --- |
+| 正确性 / 完整性 / 忠实度 | 2.00 / 2.00 / 2.00（满分 2） |
+| 期望来源进入证据 | 15/15 |
 | 严格引用期望来源 | 14/15 |
+| 引用编号有效 | 100% |
 | 无答案可靠拒答 | 3/3 |
 
-各次评测的报告与失败归因见 `data/evaluation/` 下的 README 与 REPORT 文件。
+最新结论见 [`data/evaluation/v2/REPORT-2026-09-23-evidence-assembly.md`](data/evaluation/v2/REPORT-2026-09-23-evidence-assembly.md)，
+BM25 查询策略对照见 [`data/evaluation/REPORT-2026-09-23-bm25-diagnostic.md`](data/evaluation/REPORT-2026-09-23-bm25-diagnostic.md)。
+评测方法、评分规则与门槛说明见 [`data/evaluation/answer_quality/README.md`](data/evaluation/answer_quality/README.md)，
+评测集 v2 的样本结构与标注口径见 [`data/evaluation/v2/README.md`](data/evaluation/v2/README.md)。
 
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
-| `项目启动说明.txt` | 逐步骤的本地启动与常见问题排查 |
-| `PROJECT_STATUS.md` | 当前状态、验收结果与后续工作 |
-| `RAG_ASSISTANT_GUIDE.md` | 技术方案、各环节职责与评测约定 |
-| `MVP_PLAN.md` | 首期范围与完成标准 |
-| `NEXT_AGENT_HANDOFF.md` | 阶段交接信息 |
-| `docs/ideas/agentic-rag.md` | 暂缓实施的证据驱动 Agentic RAG 方案 |
+| [`项目启动说明.txt`](项目启动说明.txt) | 逐步骤的本地启动、依赖服务与常见问题排查 |
+| [`docs/specs/qa-web-mvp.md`](docs/specs/qa-web-mvp.md) | 问答 Web MVP 规格：UX、SSE 与错误契约、提示词约束、完成标准 |
+| [`docs/tasks/ragV2/`](docs/tasks/ragV2/README.md) | 当前任务包：01 查询规划、02 精排已实现，03～05 待执行 |
+| [`docs/ideas/agentic-rag.md`](docs/ideas/agentic-rag.md) | 暂缓实施的证据驱动 Agentic RAG 方案 |
+| [`docs/过期文档/`](docs/过期文档/README.md) | 历史文档归档（MVP 计划、项目状态、技术指南、阶段交接与评审记录） |
 
 ## 许可与数据来源
 
@@ -195,6 +234,6 @@ npm run build
 
 ## 当前不做
 
-限流、请求预算、监控、HTTPS Cookie 与滥用防护留到明确需要公开部署时再评估。Cross-Encoder
-精排已接入但默认关闭（`MCWIKI_RERANKER=none`），是否默认开启由固定 18 题回归决定；不引入
-LangGraph、多 Agent，也不使用 MySQL、Redis 或 Elasticsearch。
+引入 LangGraph、多 Agent，使用 MySQL、Redis 或 Elasticsearch，以及 GraphRAG。限流、请求预算、
+监控、HTTPS Cookie 与滥用防护留到明确需要公开部署时再评估；开放互联网检索仅作为
+`docs/ideas/agentic-rag.md` 中的前瞻方案，当前不实施。
