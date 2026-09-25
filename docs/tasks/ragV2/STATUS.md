@@ -6,9 +6,10 @@
 中的验收复选框尚未勾选，本文件是当前的唯一完成情况记录。
 
 核对方式：代码与 git 历史逐项比对，后端完整测试于 2026-09-24 在提交 `e1ef515`（01～03）与
-`c6747fb`（04）上实际执行。任务文档中的「验收标准」逐条列在下面。01～03 均已合并到 `main`：
-03 由分支 `codex/ragv2-corrective` 快进合并，该分支保留但不再更新；04 在分支
-`codex/ragv2-answer-verification` 上，尚未合并。
+`c6747fb`（04）上实际执行。任务文档中的「验收标准」逐条列在下面。01～04 均已合并到 `main`：
+03、04 分别由分支 `codex/ragv2-corrective`、`codex/ragv2-answer-verification` 快进合并，
+两个分支保留但不再更新。04 的分支另外带三个与任务本身无关的显示修复提交，见文末
+「附：来源卡片可读性修复」。
 
 ## 总览
 
@@ -17,7 +18,7 @@
 | 01 Step-back 双路检索 | 已实现、验收通过 | `2c3c498`、`dcacf1a` | `MCWIKI_QUERY_STRATEGY=original` | 无 18 题对照证据 |
 | 02 Cross-Encoder 精排 | 已实现，验收缺一项 | `ae9f5bc` | `MCWIKI_RERANKER=none` | 真实模型中文烟雾测试与耗时记录缺失 |
 | 03 Corrective RAG | 已实现、验收通过 | `c91a49d` | `MCWIKI_CORRECTIVE=none` | 无 18 题对照证据；未在真实 DeepSeek 上跑过 |
-| 04 答案证据核验 | 已实现、验收通过（待合并） | `c6747fb` | `MCWIKI_ANSWER_VERIFICATION=none` | 无 18 题对照证据；未在真实 DeepSeek 上跑过 |
+| 04 答案证据核验 | 已实现、验收通过 | `c6747fb` | `MCWIKI_ANSWER_VERIFICATION=none` | 无 18 题对照证据；真实模型只跑过 3 题烟雾测试 |
 | 05 Adaptive 路由 | 未开始 | — | — | 依赖 04 |
 
 01～04 都只完成了代码与单元测试，**都没有做过 18 题对照评测**，因此默认开关均为关闭状态。
@@ -322,9 +323,11 @@ sufficient)`：证据已经过统一精排与证据预算，`sufficient` 是最�
 
 - `c6747fb` feat: add bounded answer verification with one rewrite
 - `b973627` docs: record task 04 answer verification status
+- `a503471` docs: record the task 04 docs commit and two interface tests
 
-分支 `codex/ragv2-answer-verification`，基于 `main` 的 `e1ef515`（任务 03 已合并），**尚未
-合并到 `main`**。
+分支 `codex/ragv2-answer-verification` 已快进合并到 `main`（`main` 上的这三个提交即为其内容），
+该分支保留但不再更新。分支上另有三项与任务 04 无关的来源卡片显示修复
+（`016f5b2`、`2b44677`、`13b5584`），见文末「附：来源卡片可读性修复」。
 
 ### 修改文件清单
 
@@ -515,9 +518,8 @@ uv run --with pytest python -m pytest -q
 ## 任务 05：未开始
 
 无任何代码、测试或配置，`code/rag_router.py`、`code/rag_pipeline.py`、
-`code/tests/test_router.py`、`code/tests/test_pipeline.py` 均不存在。依赖 04（已实现，分支
-`codex/ragv2-answer-verification`，提交 `c6747fb`）；应等 04 合并到 `main` 后再基于 `main`
-开工，按共同规则第 1 条另建分支。
+`code/tests/test_router.py`、`code/tests/test_pipeline.py` 均不存在。依赖 04（已实现并合并到
+`main`，提交 `c6747fb`）：可直接基于当前 `main`（`13b5584`）开工，按共同规则第 1 条另建分支。
 
 任务 05 另需修改 `README.md` 的最终流程与配置说明，届时本文件与根目录 README 都需同步更新。
 
